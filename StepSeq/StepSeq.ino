@@ -4,10 +4,20 @@ byte dataByte2;
 
 void setup(){
  pinMode(13, OUTPUT); // Eingebaute LED
- digitalWrite(13, LOW);
+
+ pinMode(8, OUTPUT);
+ pinMode(9, OUTPUT);
+ pinMode(10, OUTPUT);
+ pinMode(11, OUTPUT);
+
+ digitalWrite(13,LOW);
+ digitalWrite(8 ,LOW);
+ digitalWrite(9 ,LOW);
+ digitalWrite(10,LOW);
+ digitalWrite(11,LOW);
  Serial1.begin(31250);
 
- digitalWrite(8,HIGH);
+ 
 }
 
 
