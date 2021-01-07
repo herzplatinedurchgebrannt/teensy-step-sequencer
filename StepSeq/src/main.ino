@@ -1,13 +1,10 @@
 #include <Arduino.h>
 
-////////////////////////
-/*
-#define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
+
 #include <Wire.h>
-#include <MCP23017.h>
-MCP23017 myMCP(MCP_ADDRESS,3); // 3= ResetPin, nicht weiter wichtig hier 
-*/
-///////////////////////
+#include <Adafruit_MCP23017.h>
+
+Adafruit_MCP23017 mcp1;           // Create MCP 1
 
 const byte START = 250;
 const byte CONTINUE = 251;
@@ -39,8 +36,25 @@ unsigned long lastTime = 0;
 
 unsigned long test = 0;
 
+bool fuck = false;
+
 
 void setup() {
+
+
+  mcp1.begin(0x20);               // Start MCP 1 on Hardware address 0x20
+
+  mcp1.pinMode(0, OUTPUT);
+  mcp1.pinMode(1, OUTPUT);
+  mcp1.pinMode(2, OUTPUT); 
+  mcp1.pinMode(3, OUTPUT); 
+  mcp1.pinMode(4, OUTPUT); 
+  mcp1.pinMode(5, OUTPUT); 
+  mcp1.pinMode(6, OUTPUT); 
+  mcp1.pinMode(7, OUTPUT);  
+  mcp1.pinMode(8, OUTPUT); 
+  
+
   
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
@@ -57,17 +71,6 @@ void setup() {
   pinMode(7, INPUT_PULLUP);
   pinMode(8, INPUT_PULLUP);
 
-  ////////////////
-  /*
-  Wire.begin(18,19);
-  Wire.begin(19); //SDA = GPIO0 / SCL = GPIO2
-  myMCP.Init();
-  myMCP.setPortMode(B11111111,A);
-  myMCP.setPortMode(B11111111,B);
-  myMCP.setPort(B00000000, A); // alles auf LOW 
-  myMCP.setPort(B00000000, B); delay(1000); 
-  */
-  //////////////////////
 
 
 
@@ -78,49 +81,22 @@ void setup() {
 }
 
 void loop() {
-
-  /////////////////////////////
-  /*
-  myMCP.setPin(1,A,ON); 
-  delay(1000); 
-  myMCP.setPin(1,B,ON); 
-  delay(1000); 
-  myMCP.setPin(1,A,OFF); 
-  delay(1000); 
-  myMCP.setPin(1,B,OFF); 
-  delay(1000); 
-  myMCP.setPort(B10101010,B00011000); 
-  delay(1000); 
-  for(int i=0; i<=7; i++){ 
-    myMCP.togglePin(i,A); 
-  } 
-  delay(1000); 
-  myMCP.setPort(B00000000, A); 
-  myMCP.setPort(B00000000, B); 
-  delay(1000); 
-  */
-////////////////////////////////
+  
 
 
-
-if (millis()-lastTime >= tempo){
+if (millis()-lastTime >= tempo /*&& fuck == true*/){
   digitalWrite(13, HIGH);
   
   ledAusschalten();
   
   ledAnschalten(position);
   nextPosition = ledNext(position);
- 
 
   lastTime = millis();
- 
   
   position = nextPosition;
  
-
-
 }
-
 
   //usbMIDI.read();
 }
@@ -162,28 +138,56 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOn(144, 60, 127);
       usbMIDI.sendNoteOff(144, 60, 0);
       */
-      digitalWrite(9, HIGH);
+      mcp1.digitalWrite(0, HIGH);
       break;
     case 2:
     /*
       usbMIDI.sendNoteOn(144, 60, 127);
       usbMIDI.sendNoteOff(144, 60, 0);
       */
-      digitalWrite(10, HIGH);
+      mcp1.digitalWrite(1, HIGH);
       break;
     case 3:
     /*
       usbMIDI.sendNoteOn(144, 60, 127);
       usbMIDI.sendNoteOff(144, 60, 0);
       */
-      digitalWrite(11, HIGH);
+      mcp1.digitalWrite(2, HIGH);
       break;
     case 4:
     /*
       usbMIDI.sendNoteOn(144, 60, 127);
       usbMIDI.sendNoteOff(144, 60, 0);
       */
-      digitalWrite(12, HIGH);
+      mcp1.digitalWrite(3, HIGH);
+      break;
+    case 5:
+    /*
+      usbMIDI.sendNoteOn(144, 60, 127);
+      usbMIDI.sendNoteOff(144, 60, 0);
+      */
+      mcp1.digitalWrite(4, HIGH);
+      break;
+    case 6:
+    /*
+      usbMIDI.sendNoteOn(144, 60, 127);
+      usbMIDI.sendNoteOff(144, 60, 0);
+      */
+      mcp1.digitalWrite(5, HIGH);
+      break;
+    case 7:
+    /*
+      usbMIDI.sendNoteOn(144, 60, 127);
+      usbMIDI.sendNoteOff(144, 60, 0);
+      */
+      mcp1.digitalWrite(6, HIGH);
+      break;
+    case 8:
+    /*
+      usbMIDI.sendNoteOn(144, 60, 127);
+      usbMIDI.sendNoteOff(144, 60, 0);
+      */
+      mcp1.digitalWrite(7, HIGH);
       break;
     default:
       // Statement(s)
@@ -204,6 +208,18 @@ int ledNext(int _NextPosition){
       return 4;
     case 4:
       Serial.print(_NextPosition);
+      return 5;
+    case 5:
+      Serial.print(_NextPosition);
+      return 6;
+    case 6:
+      Serial.print(_NextPosition);
+      return 7;
+    case 7:
+      Serial.print(_NextPosition);
+      return 8;
+    case 8:
+      Serial.print(_NextPosition);
       return 1;
     default:
       Serial.print(_NextPosition);
@@ -212,8 +228,12 @@ int ledNext(int _NextPosition){
 }
 
 void ledAusschalten(){
-  digitalWrite(9, LOW);
-  digitalWrite(10, LOW);
-  digitalWrite(11, LOW);
-  digitalWrite(12, LOW);
+  mcp1.digitalWrite(0, LOW);
+  mcp1.digitalWrite(1, LOW);
+  mcp1.digitalWrite(2, LOW);
+  mcp1.digitalWrite(3, LOW);
+  mcp1.digitalWrite(4, LOW);
+  mcp1.digitalWrite(5, LOW);
+  mcp1.digitalWrite(6, LOW);
+  mcp1.digitalWrite(7, LOW);
 }
