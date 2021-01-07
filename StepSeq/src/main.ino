@@ -1,5 +1,14 @@
 #include <Arduino.h>
 
+////////////////////////
+/*
+#define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
+#include <Wire.h>
+#include <MCP23017.h>
+MCP23017 myMCP(MCP_ADDRESS,3); // 3= ResetPin, nicht weiter wichtig hier 
+*/
+///////////////////////
+
 const byte START = 250;
 const byte CONTINUE = 251;
 const byte STOP = 252;
@@ -48,12 +57,19 @@ void setup() {
   pinMode(7, INPUT_PULLUP);
   pinMode(8, INPUT_PULLUP);
 
-/*
-  digitalWrite(9, HIGH);
-  digitalWrite(10, HIGH);
-  digitalWrite(11, HIGH);
-  digitalWrite(12, HIGH);
+  ////////////////
+  /*
+  Wire.begin(18,19);
+  Wire.begin(19); //SDA = GPIO0 / SCL = GPIO2
+  myMCP.Init();
+  myMCP.setPortMode(B11111111,A);
+  myMCP.setPortMode(B11111111,B);
+  myMCP.setPort(B00000000, A); // alles auf LOW 
+  myMCP.setPort(B00000000, B); delay(1000); 
   */
+  //////////////////////
+
+
 
   Serial.begin(115200); 
   
@@ -63,18 +79,27 @@ void setup() {
 
 void loop() {
 
-  
-
-
-/*
-Serial.println("lasttime");
-Serial.println(lastTime);
-Serial.println("millis");
-Serial.println(millis());
-Serial.println("tempo");
-Serial.println(tempo);
-lastTime = millis();
-*/
+  /////////////////////////////
+  /*
+  myMCP.setPin(1,A,ON); 
+  delay(1000); 
+  myMCP.setPin(1,B,ON); 
+  delay(1000); 
+  myMCP.setPin(1,A,OFF); 
+  delay(1000); 
+  myMCP.setPin(1,B,OFF); 
+  delay(1000); 
+  myMCP.setPort(B10101010,B00011000); 
+  delay(1000); 
+  for(int i=0; i<=7; i++){ 
+    myMCP.togglePin(i,A); 
+  } 
+  delay(1000); 
+  myMCP.setPort(B00000000, A); 
+  myMCP.setPort(B00000000, B); 
+  delay(1000); 
+  */
+////////////////////////////////
 
 
 
