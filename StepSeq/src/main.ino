@@ -25,6 +25,7 @@ bool buttonPressed3 = false;
 bool buttonPressed4 = false;
 
 byte inputs = 0;
+byte blub = 0;
 
 
 
@@ -41,7 +42,9 @@ unsigned long lastTime = 0;
 
 unsigned long test = 0;
 
-bool fuck = false;
+bool fuck = true;
+
+
 
 
 void setup() {
@@ -73,6 +76,8 @@ void setup() {
   Wire.write(0x00); // IODIRA register
   Wire.write(0x00); // set all of bank A to outputs
   Wire.endTransmission();
+
+
 
   // http://robert-fromm.info/?post=elec_i2c_mcp23017
   // interne Pullup Widerstände aktivieren. Adresse ist laut Datenblatt S.22 0x06, laut Beispiel 0x0D ?!?!?
@@ -120,6 +125,8 @@ void setup() {
 }
 
 void loop() {
+  
+  
    // read the inputs of bank B
   Wire.beginTransmission(0x20);
   Wire.write(0x13);
@@ -127,12 +134,22 @@ void loop() {
   Wire.requestFrom(0x20, 1);
   inputs=Wire.read();
 
+  Serial.println(inputs);
+
+  if (inputs < 255){
+    digitalWrite(13, LOW);
+  }
+
+  blub = !inputs;
+
+/*
   // now send the input data to bank A
   Wire.beginTransmission(0x20);
   Wire.write(0x12); // GPIOA
   Wire.write(inputs);    // bank A
   Wire.endTransmission();
   delay(200); // for debounce
+  */
   /*
   Wire.requestFrom(0x20, 1); // request one byte of data from MCP20317
     inputs = Wire.read(); // store the incoming byte into "inputs"
@@ -181,7 +198,7 @@ delay(1000);
 
 */
 
-digitalWrite(13, HIGH);
+
 /*
 
 mcp1.digitalWrite(0, HIGH);
