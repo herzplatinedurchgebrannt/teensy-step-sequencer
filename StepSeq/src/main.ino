@@ -1,49 +1,65 @@
 #include <Arduino.h>
 
-
+// MCP23017 and I2C stuff
 #include <Wire.h>
+#include <MCP23017.h> 
+
+#define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
+
+int interruptPin = 26;
+volatile bool event = false;
+byte intCapReg; 
+MCP23017 myMCP(MCP_ADDRESS,27); // 5 = ResetPin
 
 /*
 #include <Adafruit_MCP23017.h>
 
 Adafruit_MCP23017 mcp1;           // Create MCP 1
-*/
+
 
 const byte START = 250;
 const byte CONTINUE = 251;
 const byte STOP = 252;
 const byte CLOCK = 248;
 
-byte zaehler = 0;
-float bpm = 0;
-float zeitAlt = 0;
 
+byte zaehler = 0;
+float zeitAlt = 0;
 
 bool buttonPressed1 = false;
 bool buttonPressed2 = false;
 bool buttonPressed3 = false;
 bool buttonPressed4 = false;
-
-byte inputs = 0;
-byte blub = 0;
+*/
 
 
 
-// als tempo sollte die Notenlänge von 1/4 Note herauskommen
-int noteLength = 1;
-
-static unsigned long tempo = 1000;
+float bpm = 120;
 //int tempo = 1000/(bpm/60)*noteLength;
 
+/*
 int position = 1;
 int nextPosition = 0;
+*/
 
 unsigned long lastTime = 0;
 
-unsigned long test = 0;
-
 bool fuck = true;
 
+volatile byte buttonGedrueckt = 0;
+unsigned long lastInterrupt = 0;
+
+
+boolean seqSpeicher[4][8] =   { {1,1,1,0,1,1,0,1},
+                                {0,0,1,0,1,1,1,0},
+                                {0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0} };
+
+byte seqSpurAktiv = 0;
+byte seqStepAktuell = 0;
+
+volatile byte statusSeqTrackToLED = 0;
+volatile byte statusSeqLauflicht = 0;
 
 
 
@@ -63,12 +79,36 @@ void setup() {
   mcp1.pinMode(8, OUTPUT); 
   */
   
-  
   Wire.begin();
-
-
-
   
+
+  pinMode(interruptPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), eventHappened, FALLING);
+
+
+  Serial.begin(115200); 
+  Wire.begin();
+  myMCP.Init();
+  myMCP.setPortMode(B11111111, A);
+  myMCP.setPort(B11111111, A); // kurzer LED Test
+  delay(1000); 
+  myMCP.setAllPins(A, OFF);
+  delay(1000);
+  myMCP.setInterruptPinPol(LOW);
+  delay(10);
+  myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
+  myMCP.setPortPullUp(B11111111, B);
+  event=false;
+
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
+
+  pinMode(26, INPUT);
+  //attachInterrupt(26, buttonInterrupt0, LOW );
+
+
+
+  /*
   // Im Register A befinden sich die LEDs, Register A muss auf OUTPUT gestellt werden
   // MCP23017 befindet sich auf Adresse 0x20 -> Dezimal 32, Binär B00100000
   
@@ -86,6 +126,25 @@ void setup() {
   Wire.write(B11111111);
   Wire.endTransmission();
 
+// Interrupt Stuff 
+
+  Wire.beginTransmission(0x20);
+  Wire.write(0x05);
+  Wire.write(B00000000);
+  Wire.endTransmission();
+
+  Wire.beginTransmission(0x20);
+  Wire.write(0x07);
+  Wire.write(B11111111);
+  Wire.endTransmission();
+
+  
+  Wire.beginTransmission(0x20);
+  Wire.write(0x09);
+  Wire.write(B11111111);
+  Wire.endTransmission();
+  
+
 
 /*
   // Im Register B befinden sich die Schalter, Standardnmäßig sind die Register auf INPUT gestellt
@@ -94,39 +153,57 @@ void setup() {
   Wire.endTransmission();
   */
   
-
- Serial.begin(115200); 
-
-  
-  pinMode(9, OUTPUT);
-  pinMode(10, OUTPUT);
-  pinMode(11, OUTPUT);
-  pinMode(12, OUTPUT);
-
-  pinMode(13, OUTPUT);
-
-  pinMode(2, INPUT_PULLUP);
-  pinMode(3, INPUT_PULLUP);
-  pinMode(4, INPUT_PULLUP);
-  pinMode(5, INPUT_PULLUP);
-  pinMode(6, INPUT_PULLUP);
-  pinMode(7, INPUT_PULLUP);
-  pinMode(8, INPUT_PULLUP);
-
-  digitalWrite(13, HIGH);
-
-
-
-
-  
-  
   /*usbMIDI.setHandleRealTimeSystem(beatClock);
   */
 }
 
 void loop() {
+
+
+//seqLauflicht(seqStepAktuell);
+
+  
+
+  intCapReg = myMCP.getIntCap(B);
+  if(event){
+    delay(200);
+    
+    byte intFlagReg, eventPin; 
+    byte test, test2;
+
+    intFlagReg = myMCP.getIntFlag(B);
+    eventPin = log(intFlagReg)/log(2);
+    
+    test = log(intFlagReg);
+    test2 = log(2);
+    Serial.println("hallo!");
+    Serial.println(test);
+    Serial.println(test2);
+    
+    intCapReg = myMCP.getIntCap(B);
+    Serial.println("Interrupt!");
+    Serial.print("Interrupt Flag Register: ");
+    Serial.println(intFlagReg,BIN); 
+    Serial.print("Interrupt Capture Register: ");
+    Serial.println(intCapReg,BIN); 
+    Serial.print("Pin No.");
+    Serial.print(eventPin);
+    Serial.print(" went ");
+    if((intFlagReg&intCapReg) == 0){
+      Serial.println("LOW");
+    }
+    else{
+      Serial.println("HIGH");
+    }
+    myMCP.setPort(intFlagReg, A);
+    delay(1000);
+    
+    event = false;
+  }
   
   
+
+  /*
    // read the inputs of bank B
   Wire.beginTransmission(0x20);
   Wire.write(0x13);
@@ -134,13 +211,13 @@ void loop() {
   Wire.requestFrom(0x20, 1);
   inputs=Wire.read();
 
-  Serial.println(inputs);
+  //Serial.println(inputs);
 
+/*
   if (inputs < 255){
     digitalWrite(13, LOW);
   }
-
-  blub = !inputs;
+  */
 
 /*
   // now send the input data to bank A
@@ -166,7 +243,6 @@ mcp1.begin(0x20); // Init MCP23017 at address 0x20
     }
 
 */
-
 /*
 
 
@@ -199,35 +275,118 @@ delay(1000);
 */
 
 
-/*
-
-mcp1.digitalWrite(0, HIGH);
-mcp1.digitalWrite(1, HIGH);
-mcp1.digitalWrite(2, HIGH);
-mcp1.digitalWrite(3, HIGH);
-mcp1.digitalWrite(4, HIGH);
-mcp1.digitalWrite(5, HIGH);
-mcp1.digitalWrite(6, HIGH);
-mcp1.digitalWrite(7, HIGH);
-
-*/
 
 // Hier ist die Zeitschleife
-if (millis()-lastTime >= tempo  && fuck == true){
-  digitalWrite(13, HIGH);
-  
-  ledAusschalten();
-  
-  ledAnschalten(position);
-  nextPosition = ledNext(position);
+if (millis()-lastTime >= bpm  && fuck == true){
+  seqTrackToLED(seqSpurAktiv);
+  seqLauflicht(seqStepAktuell);
+  myMCP.getIntCap(B);
+
+  seqStepAktuell = seqStepAktuell + 1;
+  if (seqStepAktuell == 9){ seqStepAktuell = 1;}
 
   lastTime = millis();
-  
-  position = nextPosition;
-}
+
   //usbMIDI.read();
 }
 
+/*
+  if (buttonGedrueckt != 0){
+
+    Wire.begin(0x20);
+    Wire.write(0x11);
+    Wire.endTransmission();
+    Wire.requestFrom(0x20,1);
+    byte huhu = Wire.read();
+    Wire.endTransmission();
+
+    Serial.println(huhu);
+
+    buttonGedrueckt == 0;
+  }
+  */
+
+
+}
+
+void eventHappened(){
+  event = true;
+}
+
+void buttonInterrupt0(){
+  if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0)){
+    buttonGedrueckt = 1;
+    lastInterrupt = millis();
+  }
+  Serial.println("interrupt!");
+}
+
+void seqLauflicht (byte schrittNr){
+  if (seqSpeicher[seqSpurAktiv][schrittNr-1] == 1){myMCP.setPinX(schrittNr-1,A,OUTPUT,LOW);}
+  else {myMCP.setPinX(schrittNr-1,A,OUTPUT,HIGH);}
+}
+
+void seqTrackToLED(byte trackNr) {
+  for (int i=0; i<=8; i++) {
+    digitalWriteMCP(i,seqSpeicher[trackNr][i]);
+   // Serial.println(i);
+   // Serial.println(seqSpeicher[trackNr][i]);
+    }
+  }
+
+
+void digitalWriteMCP(byte stepNummer, boolean anOderAus){
+  byte statusGP = 0;
+  byte pinNumber = 0;
+  //byte mcpWahl = 0;
+
+  /*
+
+  if ( stepNummer >= 8){ mcpWahl = 1; }
+  else {mcpWahl = 0;}
+  */
+
+/*
+  Wire.beginTransmission(0x20);
+  Wire.write(0x12);
+  Wire.endTransmission();
+  Wire.requestFrom(0x20, 1);
+  statusGP = Wire.read();
+  Wire.endTransmission();
+
+
+  if (stepNummer >= 8) {pinNumber = stepNummer-8;}
+  else { pinNumber = stepNummer;}
+
+  if (anOderAus == 0) { statusGP &= ~(B00000001 << (pinNumber));
+  }
+  else if (anOderAus == 1) { statusGP |= (B00000001 << (pinNumber));
+  }
+  */
+  myMCP.setPinX(stepNummer,A,OUTPUT,anOderAus);
+  /*
+  Wire.beginTransmission(0x20);
+  Wire.write(0x12);
+  Wire.write(statusGP);
+  Wire.endTransmission();
+  */
+
+  //Serial.println(statusGP);
+
+}
+
+
+
+/*
+void eventHappened(){
+  event = true;
+}
+*/
+
+
+
+
+/*
 void beatClock(byte realtimebyte) {
   if(realtimebyte == START) { zaehler = 0; zeitAlt = millis(); }
   if(realtimebyte == CONTINUE) { zeitAlt = millis(); }
@@ -250,7 +409,7 @@ void beatClock(byte realtimebyte) {
     Serial.println(" BPM");
     zeitAlt = millis();
   }
-}
+}*/
 
 // Funktion nur für Arduino, funktioniert mit Teensy über USB-> Midi nicht
 void sendNote(byte statusByte, byte dataByte1, byte dataByte2){
@@ -267,11 +426,13 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(0, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B00000001);  // value to send
       Wire.endTransmission();
+*/
+      myMCP.setPort(B00000001, A);
       
       break;
     case 2:
@@ -280,12 +441,14 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(1, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B00000010);  // value to send
       Wire.endTransmission();
-      
+      */
+      myMCP.setPort(B00000010, A);
+
       break;
     case 3:
     /*
@@ -293,11 +456,13 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(2, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B00000100);  // value to send
       Wire.endTransmission();
+*/
+      myMCP.setPort(B00000100, A);
       
       break;
     case 4:
@@ -306,11 +471,13 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(3, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B00001000);  // value to send
       Wire.endTransmission();
+*/
+      myMCP.setPort(B00001000, A);
       
       break;
     case 5:
@@ -319,11 +486,13 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(4, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B00010000);  // value to send
       Wire.endTransmission();
+*/
+      myMCP.setPort(B00010000, A);
       
       break;
     case 6:
@@ -332,11 +501,13 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(5, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B00100000);  // value to send
       Wire.endTransmission();
+*/
+      myMCP.setPort(B00100000, A);
       
       break;
     case 7:
@@ -345,11 +516,13 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(6, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B01000000);  // value to send
       Wire.endTransmission();
+*/
+      myMCP.setPort(B01000000, A);
       
       break;
     case 8:
@@ -358,11 +531,13 @@ void ledAnschalten(int _Position){
       usbMIDI.sendNoteOff(144, 60, 0);
       
       mcp1.digitalWrite(7, HIGH);
-      */
+      
       Wire.beginTransmission(0x20);
       Wire.write(0x12); // address port A
       Wire.write(B10000000);  // value to send
       Wire.endTransmission();
+*/
+      myMCP.setPort(B10000000, A);
       
       break;
     default:
@@ -371,43 +546,4 @@ void ledAnschalten(int _Position){
 }
 }
 
-int ledNext(int _NextPosition){
-     switch (_NextPosition) {
-    case 1:
-      //Serial.print(_NextPosition);
-      return 2;
-    case 2:
-      //Serial.print(_NextPosition);
-      return 3;
-    case 3:
-      //Serial.print(_NextPosition);
-      return 4;
-    case 4:
-      //Serial.print(_NextPosition);
-      return 5;
-    case 5:
-      //Serial.print(_NextPosition);
-      return 6;
-    case 6:
-      //Serial.print(_NextPosition);
-      return 7;
-    case 7:
-      //Serial.print(_NextPosition);
-      return 8;
-    case 8:
-      //Serial.print(_NextPosition);
-      return 1;
-    default:
-      // Serial.print(_NextPosition);
-      break; // Wird nicht benötigt, wenn Statement(s) vorhanden sind
-}
-}
 
-void ledAusschalten(){
-
-    Wire.beginTransmission(0x20);
-    Wire.write(0x12); // address port A
-    Wire.write(B00000000);  // value to send
-    Wire.endTransmission();
-  
-}
