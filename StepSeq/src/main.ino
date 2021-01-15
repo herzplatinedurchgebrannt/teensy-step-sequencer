@@ -83,7 +83,7 @@ void setup() {
   
 
   pinMode(interruptPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(interruptPin), eventHappened, FALLING);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), buttonInterrupt0, FALLING);
 
 
   Serial.begin(115200); 
@@ -288,24 +288,8 @@ if (millis()-lastTime >= bpm  && fuck == true){
 
   if (buttonGedrueckt != 0){
 
-    digitalWrite(13, HIGH);
+    buttonsAbfragen(buttonGedrueckt);
 
-    delay(100);
-
-    digitalWrite(13,LOW);
-
-    Serial.println("HallO");
-
-    /*
-    Wire.begin(0x20);
-    Wire.write(0x11);
-    Wire.endTransmission();
-    Wire.requestFrom(0x20,1);
-    byte huhu = Wire.read();
-    Wire.endTransmission();
-
-    Serial.println(huhu);
-    */
     buttonGedrueckt = 0;
     
   }
@@ -315,13 +299,50 @@ if (millis()-lastTime >= bpm  && fuck == true){
 }
 
 
+void buttonsAbfragen(byte woGedrueckt) {
+   byte statusICR = 0;
+   byte mcpWahl = 0;
+
+   if (woGedrueckt == 1 ) {  mcpWahl = 0; }
+   if (woGedrueckt == 2 ) {  mcpWahl = 1; }
+
+   Wire.beginTransmission(0x20);
+   Wire.write(0x0F);
+   Wire.endTransmission();
+   Wire.requestFrom(0x20,1);
+   statusICR = Wire.read();
+   Wire.endTransmission();
+
+   Serial.println(statusICR);
+
+   if (statusICR != 0) { seqNoteSchreiben(statusICR); }
+
+}
+
+void seqNoteSchreiben(byte noteInBits){
+  byte x = 0;
+
+  while ( bitRead(noteInBits, x) == 0) {
+    x++;
+
+    Serial.println("in while schleife");
+    Serial.println("x:");
+    Serial.println(x);
+    Serial.println("noteInBits: ");
+    Serial.println(noteInBits);
+
+  }
+  Serial.println("aus schleife raus");
+}
+
+
 
 void buttonInterrupt0(){
   if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0)){
     buttonGedrueckt = 1;
     lastInterrupt = millis();
   }
-  Serial.println("interrupt!");
+  //Serial.println("interrupt!");
   
 }
 
@@ -357,55 +378,20 @@ void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   statusGP = Wire.read();
   Wire.endTransmission();
 
-
-  /*
-  Serial.println("Status GELESEN");
-  Serial.println(statusGP);
-  delay(2000);
-
-
-  Serial.println("vorher");
-  Serial.println(stepNummer);
-  Serial.println("anoder Aus");
-  Serial.println(anOderAus);
-  */
-
-
   if (stepNummer >= 8) {pinNumber = stepNummer-8;}
   else { pinNumber = stepNummer;}
 
-  /*
-  Serial.println("nachher");
-  Serial.println(pinNumber);
-  */
 
   if (anOderAus == 0) { statusGP &= ~(B00000001 << (pinNumber));
   }
   else if (anOderAus == 1) { statusGP |= (B00000001 << (pinNumber));
   }
 
-  /*
-  Serial.println("Status GEÄNDERT");
-  Serial.println(statusGP);
-  */
-
-  /*
-  myMCP.setPinX(stepNummer,A,OUTPUT,anOderAus);
-  */
-
-
   Wire.beginTransmission(0x20);
   Wire.write(0x12);
   Wire.write(statusGP);
   Wire.endTransmission();
 
-  /*
-  Serial.println("Status GESCHRIEBEN");
-  Serial.println(statusGP);
-  delay(2000);
-  */
-
-  //Serial.println(statusGP);
 
 }
 
