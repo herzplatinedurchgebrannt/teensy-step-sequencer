@@ -325,14 +325,23 @@ void seqNoteSchreiben(byte noteInBits){
   while ( bitRead(noteInBits, x) == 0) {
     x++;
 
+    /*
     Serial.println("in while schleife");
+    */
     Serial.println("x:");
     Serial.println(x);
     Serial.println("noteInBits: ");
     Serial.println(noteInBits);
+    
 
   }
-  Serial.println("aus schleife raus");
+
+  // HIER SCHREIBEN
+  if (seqSpeicher[0][x] ==  1) { seqSpeicher[0][x]=0;}
+  else {seqSpeicher[0][x] = 1;}
+
+
+  //Serial.println("aus schleife raus");
 }
 
 
@@ -342,8 +351,18 @@ void buttonInterrupt0(){
     buttonGedrueckt = 1;
     lastInterrupt = millis();
   }
-  //Serial.println("interrupt!");
-  
+
+  /*
+ seqSpeicher[0][0] =  1;
+ seqSpeicher[0][1] =  1;
+ seqSpeicher[0][2] =  1;
+ seqSpeicher[0][3] =  1;
+ seqSpeicher[0][4] =  1;
+ seqSpeicher[0][5] =  1;
+ seqSpeicher[0][6] =  1;
+ seqSpeicher[0][7] =  1;
+ */
+
 }
 
 void seqLauflicht (byte schrittNr){
