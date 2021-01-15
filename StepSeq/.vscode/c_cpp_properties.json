@@ -10,6 +10,7 @@
             "includePath": [
                 "d:/Coding/Arduino/StepSequencer/StepSeq/include",
                 "d:/Coding/Arduino/StepSequencer/StepSeq/src",
+                "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MCP23017_WE-master/src",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/Wire",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/Wire/utility",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/cores/teensy4",
@@ -58,7 +59,6 @@
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/LiquidCrystal/src",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/LiquidCrystalFast",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/LowPower",
-                "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MCP23017_WE-master/src",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MFRC522/src",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MIDI/src",
                 "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/Metro",
@@ -118,6 +118,7 @@
                 "path": [
                     "d:/Coding/Arduino/StepSequencer/StepSeq/include",
                     "d:/Coding/Arduino/StepSequencer/StepSeq/src",
+                    "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MCP23017_WE-master/src",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/Wire",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/Wire/utility",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/cores/teensy4",
@@ -166,7 +167,6 @@
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/LiquidCrystal/src",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/LiquidCrystalFast",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/LowPower",
-                    "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MCP23017_WE-master/src",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MFRC522/src",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/MIDI/src",
                     "C:/Users/lx/.platformio/packages/framework-arduinoteensy/libraries/Metro",
