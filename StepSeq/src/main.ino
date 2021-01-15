@@ -50,7 +50,7 @@ volatile byte buttonGedrueckt = 0;
 unsigned long lastInterrupt = 0;
 
 
-boolean seqSpeicher[4][8] =   { {1,1,1,0,1,1,0,1},
+boolean seqSpeicher[4][8] =   { {1,0,1,0,1,1,0,1},
                                 {0,0,1,0,1,1,1,0},
                                 {0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0} };
@@ -160,10 +160,6 @@ void setup() {
 void loop() {
 
 
-//seqLauflicht(seqStepAktuell);
-
-  
-
   intCapReg = myMCP.getIntCap(B);
   if(event){
     delay(200);
@@ -174,11 +170,13 @@ void loop() {
     intFlagReg = myMCP.getIntFlag(B);
     eventPin = log(intFlagReg)/log(2);
     
+    
     test = log(intFlagReg);
     test2 = log(2);
     Serial.println("hallo!");
     Serial.println(test);
     Serial.println(test2);
+    
     
     intCapReg = myMCP.getIntCap(B);
     Serial.println("Interrupt!");
@@ -218,7 +216,6 @@ void loop() {
     digitalWrite(13, LOW);
   }
   */
-
 /*
   // now send the input data to bank A
   Wire.beginTransmission(0x20);
@@ -274,25 +271,32 @@ delay(1000);
 
 */
 
-
-
 // Hier ist die Zeitschleife
 if (millis()-lastTime >= bpm  && fuck == true){
   seqTrackToLED(seqSpurAktiv);
   seqLauflicht(seqStepAktuell);
-  myMCP.getIntCap(B);
+
 
   seqStepAktuell = seqStepAktuell + 1;
-  if (seqStepAktuell == 9){ seqStepAktuell = 1;}
+  if (seqStepAktuell == 8){ seqStepAktuell = 0;}
 
   lastTime = millis();
 
   //usbMIDI.read();
 }
 
-/*
+
   if (buttonGedrueckt != 0){
 
+    digitalWrite(13, HIGH);
+
+    delay(100);
+
+    digitalWrite(13,LOW);
+
+    Serial.println("HallO");
+
+    /*
     Wire.begin(0x20);
     Wire.write(0x11);
     Wire.endTransmission();
@@ -301,17 +305,16 @@ if (millis()-lastTime >= bpm  && fuck == true){
     Wire.endTransmission();
 
     Serial.println(huhu);
-
-    buttonGedrueckt == 0;
+    */
+    buttonGedrueckt = 0;
+    
   }
-  */
+  
 
 
 }
 
-void eventHappened(){
-  event = true;
-}
+
 
 void buttonInterrupt0(){
   if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0)){
@@ -319,17 +322,17 @@ void buttonInterrupt0(){
     lastInterrupt = millis();
   }
   Serial.println("interrupt!");
+  
 }
 
 void seqLauflicht (byte schrittNr){
-  if (seqSpeicher[seqSpurAktiv][schrittNr-1] == 1){myMCP.setPinX(schrittNr-1,A,OUTPUT,LOW);}
-  else {myMCP.setPinX(schrittNr-1,A,OUTPUT,HIGH);}
+  if (seqSpeicher[seqSpurAktiv][schrittNr] == 1){ digitalWriteMCP(schrittNr,0);}
+  else {digitalWriteMCP(schrittNr,1);}
 }
 
 void seqTrackToLED(byte trackNr) {
-  for (int i=0; i<=8; i++) {
+  for (int i=0; i<=7; i++) {
     digitalWriteMCP(i,seqSpeicher[trackNr][i]);
-   // Serial.println(i);
    // Serial.println(seqSpeicher[trackNr][i]);
     }
   }
@@ -338,15 +341,15 @@ void seqTrackToLED(byte trackNr) {
 void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   byte statusGP = 0;
   byte pinNumber = 0;
-  //byte mcpWahl = 0;
+  byte mcpWahl = 0;
 
   /*
 
-  if ( stepNummer >= 8){ mcpWahl = 1; }
+  if ( stepNummer >= 16){ mcpWahl = 1; }
   else {mcpWahl = 0;}
   */
 
-/*
+
   Wire.beginTransmission(0x20);
   Wire.write(0x12);
   Wire.endTransmission();
@@ -355,20 +358,51 @@ void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   Wire.endTransmission();
 
 
+  /*
+  Serial.println("Status GELESEN");
+  Serial.println(statusGP);
+  delay(2000);
+
+
+  Serial.println("vorher");
+  Serial.println(stepNummer);
+  Serial.println("anoder Aus");
+  Serial.println(anOderAus);
+  */
+
+
   if (stepNummer >= 8) {pinNumber = stepNummer-8;}
   else { pinNumber = stepNummer;}
+
+  /*
+  Serial.println("nachher");
+  Serial.println(pinNumber);
+  */
 
   if (anOderAus == 0) { statusGP &= ~(B00000001 << (pinNumber));
   }
   else if (anOderAus == 1) { statusGP |= (B00000001 << (pinNumber));
   }
-  */
-  myMCP.setPinX(stepNummer,A,OUTPUT,anOderAus);
+
   /*
+  Serial.println("Status GEÄNDERT");
+  Serial.println(statusGP);
+  */
+
+  /*
+  myMCP.setPinX(stepNummer,A,OUTPUT,anOderAus);
+  */
+
+
   Wire.beginTransmission(0x20);
   Wire.write(0x12);
   Wire.write(statusGP);
   Wire.endTransmission();
+
+  /*
+  Serial.println("Status GESCHRIEBEN");
+  Serial.println(statusGP);
+  delay(2000);
   */
 
   //Serial.println(statusGP);
@@ -377,11 +411,7 @@ void digitalWriteMCP(byte stepNummer, boolean anOderAus){
 
 
 
-/*
-void eventHappened(){
-  event = true;
-}
-*/
+
 
 
 
@@ -410,6 +440,12 @@ void beatClock(byte realtimebyte) {
     zeitAlt = millis();
   }
 }*/
+
+
+
+////////////////////////////////////// SCHROTT /////////////////////////////////////////////////////////////////////////////
+
+
 
 // Funktion nur für Arduino, funktioniert mit Teensy über USB-> Midi nicht
 void sendNote(byte statusByte, byte dataByte1, byte dataByte2){
@@ -546,4 +582,6 @@ void ledAnschalten(int _Position){
 }
 }
 
-
+void eventHappened(){
+  event = true;
+}
