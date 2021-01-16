@@ -43,6 +43,8 @@ int nextPosition = 0;
 */
 
 unsigned long lastTime = 0;
+unsigned long lastTimeTrack = 0;
+
 
 bool fuck = true;
 
@@ -53,7 +55,7 @@ unsigned long lastInterrupt = 0;
 boolean seqSpeicher[4][8] =   { {1,0,1,0,1,1,0,1},
                                 {0,0,1,0,1,1,1,0},
                                 {0,0,0,0,0,0,0,0},
-                                {0,0,0,0,0,0,0,0} };
+                                {1,1,1,1,1,1,1,1} };
 
 byte seqSpurAktiv = 0;
 byte seqStepAktuell = 0;
@@ -61,7 +63,9 @@ byte seqStepAktuell = 0;
 volatile byte statusSeqTrackToLED = 0;
 volatile byte statusSeqLauflicht = 0;
 
+bool sendOkay = true;
 
+volatile bool changeTrack = false;
 
 void setup() {
 
@@ -85,6 +89,8 @@ void setup() {
   pinMode(interruptPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(interruptPin), buttonInterrupt0, FALLING);
 
+  pinMode(2, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(2), testInterrupt, FALLING);  
 
   Serial.begin(115200); 
   Wire.begin();
@@ -105,6 +111,9 @@ void setup() {
 
   pinMode(26, INPUT);
   //attachInterrupt(26, buttonInterrupt0, LOW );
+
+  
+
 
 
 
@@ -159,6 +168,14 @@ void setup() {
 
 void loop() {
 
+if (changeTrack == true){
+  seqSpurAktiv = seqSpurAktiv +1;
+  if (seqSpurAktiv >= 4){
+    seqSpurAktiv = 0;
+  }
+  lastTimeTrack = millis();
+  changeTrack = false;
+}
 
   intCapReg = myMCP.getIntCap(B);
   if(event){
@@ -286,16 +303,36 @@ if (millis()-lastTime >= bpm  && fuck == true){
 }
 
 
-  if (buttonGedrueckt != 0){
+  if (buttonGedrueckt != 0 && sendOkay == true){
 
     buttonsAbfragen(buttonGedrueckt);
 
     buttonGedrueckt = 0;
+
+    Serial.println("in schleife");
+
+    
     
   }
+  //Serial.println("jhsjsjsjsjs");
+
+  if (digitalRead(26) == 1){
+    sendOkay = true;
+
+  }
+
   
 
 
+}
+
+void testInterrupt(){
+  if (( millis()-lastTimeTrack >= 50) && changeTrack == false){
+    changeTrack = true;
+    lastTimeTrack = millis();
+  }
+  
+  
 }
 
 
@@ -337,8 +374,14 @@ void seqNoteSchreiben(byte noteInBits){
   }
 
   // HIER SCHREIBEN
-  if (seqSpeicher[0][x] ==  1) { seqSpeicher[0][x]=0;}
-  else {seqSpeicher[0][x] = 1;}
+  if (seqSpeicher[seqSpurAktiv][x] ==  1) { 
+    seqSpeicher[seqSpurAktiv][x]=0; 
+    sendOkay = false;
+    }
+  else {
+    seqSpeicher[seqSpurAktiv][x] = 1; 
+    sendOkay = false;
+    }
 
 
   //Serial.println("aus schleife raus");
