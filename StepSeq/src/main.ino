@@ -65,12 +65,12 @@ boolean seqSpeicher[8][8] =   { {1,0,0,0,0,0,0,0},
 
 int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {38, 127, 1}, //Snare
-                          {44, 127, 1}, //Hat
-                          {45, 127, 1}, //Crash
-                          {46, 127, 1}, //Crash
-                          {47, 127, 1}, //Crash
+                          {42, 127, 1}, //Hat
+                          {49, 127, 1}, //Crash
                           {48, 127, 1}, //Crash
-                          {49, 127, 1}  //Crash
+                          {39, 127, 1}, //Crash
+                          {44, 127, 1}, //Crash
+                          {35, 127, 1}  //Crash
 };
 
 
@@ -228,6 +228,7 @@ if (changeTrack == true && lastButtonPressed != 0){
   lastTimeTrack = millis();
   changeTrack = false;
 
+  // in diesem Durchlauf darf Controller keine Note mehr sagen aufgrund von ChangeTrack
   sendOkay = false;
 
   digitalWrite(39, LOW);
@@ -383,8 +384,8 @@ void sendMidiNotes(byte spur, byte schritt){
   for (int i=0; i<=7; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-    //usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-    //usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+    usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+    usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
     }
   }
 }
