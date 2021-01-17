@@ -44,6 +44,7 @@ int nextPosition = 0;
 
 unsigned long lastTime = 0;
 unsigned long lastTimeTrack = 0;
+unsigned long lastTimeStartStop = 0;
 
 
 bool fuck = true;
@@ -66,6 +67,10 @@ volatile byte statusSeqLauflicht = 0;
 bool sendOkay = true;
 
 volatile bool changeTrack = false;
+volatile bool startStopInterrupt = false;
+
+bool start = true;
+
 
 void setup() {
 
@@ -90,7 +95,10 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(interruptPin), buttonInterrupt0, FALLING);
 
   pinMode(2, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(2), testInterrupt, FALLING);  
+  attachInterrupt(digitalPinToInterrupt(2), stopInterrupt, FALLING);  
+
+  pinMode(3, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(3), trackInterrupt, FALLING);  
 
   Serial.begin(115200); 
   Wire.begin();
@@ -168,11 +176,38 @@ void setup() {
 
 void loop() {
 
+if (startStopInterrupt == true && start == true){
+  start = false;
+  startStopInterrupt = false;
+}
+else if (startStopInterrupt == true && start == false){
+  start = true;
+  startStopInterrupt = false;
+}
+
+
+
+
 if (changeTrack == true){
+  
+  Serial.println("vorher");
+  Serial.println(seqSpurAktiv);
+  
   seqSpurAktiv = seqSpurAktiv +1;
+
+  Serial.println("plus 1");
+  Serial.println(seqSpurAktiv);
+
+  
   if (seqSpurAktiv >= 4){
     seqSpurAktiv = 0;
+
+    
+  Serial.println("gleich 0 ");
+  Serial.println(seqSpurAktiv);
+
   }
+  
   lastTimeTrack = millis();
   changeTrack = false;
 }
@@ -289,7 +324,7 @@ delay(1000);
 */
 
 // Hier ist die Zeitschleife
-if (millis()-lastTime >= bpm  && fuck == true){
+if (millis()-lastTime >= bpm  && fuck == true && start == true){
   seqTrackToLED(seqSpurAktiv);
   seqLauflicht(seqStepAktuell);
 
@@ -326,15 +361,19 @@ if (millis()-lastTime >= bpm  && fuck == true){
 
 }
 
-void testInterrupt(){
+void trackInterrupt(){
   if (( millis()-lastTimeTrack >= 50) && changeTrack == false){
     changeTrack = true;
     lastTimeTrack = millis();
   }
-  
-  
 }
 
+void stopInterrupt(){
+  if (( millis()-lastTimeStartStop >= 50) && startStopInterrupt == false){
+    startStopInterrupt = true;
+    lastTimeStartStop = millis();
+  }
+}
 
 void buttonsAbfragen(byte woGedrueckt) {
    byte statusICR = 0;
@@ -387,8 +426,6 @@ void seqNoteSchreiben(byte noteInBits){
   //Serial.println("aus schleife raus");
 }
 
-
-
 void buttonInterrupt0(){
   if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0)){
     buttonGedrueckt = 1;
@@ -419,7 +456,6 @@ void seqTrackToLED(byte trackNr) {
    // Serial.println(seqSpeicher[trackNr][i]);
     }
   }
-
 
 void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   byte statusGP = 0;
