@@ -53,15 +53,24 @@ volatile byte buttonGedrueckt = 0;
 unsigned long lastInterrupt = 0;
 
 
-boolean seqSpeicher[4][8] =   { {1,0,1,0,1,1,0,1},
-                                {0,1,0,1,0,1,0,1},
-                                {1,0,0,0,0,0,0,0},
-                                {1,1,1,1,1,1,1,1} };
+boolean seqSpeicher[8][8] =   { {1,0,0,0,0,0,0,0},
+                                {1,1,0,0,0,0,0,0},
+                                {0,1,1,0,0,0,0,0},
+                                {0,0,1,1,0,0,0,0},
+                                {0,0,0,1,1,0,0,0},
+                                {0,0,0,0,1,1,0,0},
+                                {0,0,0,0,0,1,1,0},
+                                {0,0,0,0,0,0,1,1} 
+                                };
 
-int midiNotes [4][3] = {  {36, 127, 1}, //Kick
+int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {38, 127, 1}, //Snare
-                          {46, 127, 1}, //Hat
-                          {43, 127, 1}, //Crash
+                          {44, 127, 1}, //Hat
+                          {45, 127, 1}, //Crash
+                          {46, 127, 1}, //Crash
+                          {47, 127, 1}, //Crash
+                          {48, 127, 1}, //Crash
+                          {49, 127, 1}  //Crash
 };
 
 
@@ -77,6 +86,8 @@ volatile bool changeTrack = false;
 volatile bool startStopInterrupt = false;
 
 bool start = true;
+
+int lastButtonPressed = 0;
 
 
 void setup() {
@@ -128,6 +139,8 @@ void setup() {
 
   pinMode(26, INPUT);
 
+  pinMode(39, OUTPUT);
+
   /*
   // Im Register A befinden sich die LEDs, Register A muss auf OUTPUT gestellt werden
   // MCP23017 befindet sich auf Adresse 0x20 -> Dezimal 32, Binär B00100000
@@ -175,7 +188,7 @@ void setup() {
   
   /*usbMIDI.setHandleRealTimeSystem(beatClock);
   */
-}
+} 
 
 void loop() {
 
@@ -190,18 +203,34 @@ else if (startStopInterrupt == true && start == false){
 }
 
 
-
-
 if (changeTrack == true){
+  digitalWrite(39, HIGH);
+}
+
+
+if (changeTrack == true && lastButtonPressed != 0){
+
+  debugMessage(1,seqSpurAktiv,lastButtonPressed);
   
+  /*
   seqSpurAktiv = seqSpurAktiv +1;
   
   if (seqSpurAktiv >= 4){
     seqSpurAktiv = 0;
   }
+  */
+  if (lastButtonPressed != 0){
+    seqSpurAktiv = lastButtonPressed-1;
+  }
+
+  debugMessage(2,seqSpurAktiv,lastButtonPressed);
 
   lastTimeTrack = millis();
   changeTrack = false;
+
+  sendOkay = false;
+
+  digitalWrite(39, LOW);
 }
 
   intCapReg = myMCP.getIntCap(B);
@@ -214,12 +243,13 @@ if (changeTrack == true){
     intFlagReg = myMCP.getIntFlag(B);
     eventPin = log(intFlagReg)/log(2);
     
-    
+    /*
     test = log(intFlagReg);
     test2 = log(2);
     Serial.println("hallo!");
     Serial.println(test);
     Serial.println(test2);
+    */
     
     
     intCapReg = myMCP.getIntCap(B);
@@ -313,84 +343,51 @@ delay(1000);
 
 */
 
-// Hier ist die Zeitschleife
-if (millis()-lastTime >= bpm  && start == true){
-  
-  // LEDs von der aktuell angewählten Spur werden angezeigt
-  seqTrackToLED(seqSpurAktiv);
-  // Lauflichteffekt
-  seqLauflicht(seqStepAktuell);
+  // Hier ist die Zeitschleife
+  if (millis()-lastTime >= bpm  && start == true)
+  {
+    
+    // LEDs von der aktuell angewählten Spur werden angezeigt
+    seqTrackToLED(seqSpurAktiv);
 
-  sendMidiNotes(seqSpurAktiv, seqStepAktuell);
+    // Lauflichteffekt
+    seqLauflicht(seqStepAktuell);
 
+    // Midi Noten raus schicken per USB
+    sendMidiNotes(seqSpurAktiv, seqStepAktuell);
 
+    // Schritt hochzählen
+    seqStepAktuell = seqStepAktuell + 1;
+    if (seqStepAktuell == 8){ seqStepAktuell = 0;}
 
+    // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
+    lastTime = millis();
 
-  seqStepAktuell = seqStepAktuell + 1;
-  if (seqStepAktuell == 8){ seqStepAktuell = 0;}
+    //usbMIDI.read();
+  }
 
-  // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
-  lastTime = millis();
-
-  //usbMIDI.read();
-}
-
-
-  if (buttonGedrueckt != 0 && sendOkay == true){
-
+  if (buttonGedrueckt != 0 && sendOkay == true)
+  {
     buttonsAbfragen(buttonGedrueckt);
-
     buttonGedrueckt = 0;    
   }
 
-
-  if (digitalRead(26) == 1){
+  if (digitalRead(26) == 1)
+  {
     sendOkay = true;
   }
-
 }
 
 void sendMidiNotes(byte spur, byte schritt){
   
-  for (int i=0; i<=3; i++){
-    if (seqSpeicher[i][schritt] == 1){
-
-    usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-    usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+  for (int i=0; i<=7; i++){
+    if (seqSpeicher[i][schritt] == 1) 
+    {
+    //usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+    //usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+    }
   }
-  }
-  
-
-
-
-
-  /*
-  if (seqSpeicher[0][schritt] == 1){
-
-    usbMIDI.sendNoteOn(36, 127, 1);
-    usbMIDI.sendNoteOff(36, 127, 1);
-  }
-  if (seqSpeicher[1][schritt] == 1){
-
-    usbMIDI.sendNoteOn(38, 127, 1);
-    usbMIDI.sendNoteOff(38, 127, 1);
-  }
-  if (seqSpeicher[2][schritt] == 1){
-
-    usbMIDI.sendNoteOn(43, 127, 1);
-    usbMIDI.sendNoteOff(43, 127, 1);
-  }
-  if (seqSpeicher[3][schritt] == 1){
-
-    usbMIDI.sendNoteOn(44, 127, 1);
-    usbMIDI.sendNoteOff(48, 127, 1);
-  }
-  else {
-  }
-  */
 }
-
-
 
 void trackInterrupt(){
   if (( millis()-lastTimeTrack >= 50) && changeTrack == false){
@@ -404,6 +401,19 @@ void stopInterrupt(){
     startStopInterrupt = true;
     lastTimeStartStop = millis();
   }
+}
+
+void debugMessage (int stelle, int variable1, int variable2){
+  Serial.println("...");
+  Serial.println("Debugging startet hier. Stelle:");
+  Serial.println(stelle);
+  Serial.println("Integer Variable 1:");
+  Serial.println(variable1);
+  Serial.println("Integer Variable 2:");
+  Serial.println(variable1);
+  Serial.println("Debugging ENDE");
+  Serial.println("...");
+  Serial.println("...");
 }
 
 void buttonsAbfragen(byte woGedrueckt) {
@@ -420,60 +430,59 @@ void buttonsAbfragen(byte woGedrueckt) {
    statusICR = Wire.read();
    Wire.endTransmission();
 
-   Serial.println(statusICR);
+  // Serial.println(statusICR);
+   lastButtonPressed = statusICR;
 
    if (statusICR != 0) { seqNoteSchreiben(statusICR); }
-
 }
 
 void seqNoteSchreiben(byte noteInBits){
   byte x = 0;
 
-  while ( bitRead(noteInBits, x) == 0) {
+  while ( bitRead(noteInBits, x) == 0) 
+  {
     x++;
-
-    /*
-    Serial.println("in while schleife");
-    */
-    Serial.println("x:");
-    Serial.println(x);
-    Serial.println("noteInBits: ");
-    Serial.println(noteInBits);
-    
-
   }
 
+  lastButtonPressed = x+1;
   // HIER SCHREIBEN
-  if (seqSpeicher[seqSpurAktiv][x] ==  1) { 
-    seqSpeicher[seqSpurAktiv][x]=0; 
-    sendOkay = false;
+  if(changeTrack == false)
+  
+  {
+    
+
+    if (seqSpeicher[seqSpurAktiv][x] ==  1) 
+    { 
+      seqSpeicher[seqSpurAktiv][x]=0; 
+      sendOkay = false;
+      Serial.println("HAHJAHAHA");
+      lastButtonPressed = 0;
     }
-  else {
-    seqSpeicher[seqSpurAktiv][x] = 1; 
-    sendOkay = false;
+    else 
+    {
+      seqSpeicher[seqSpurAktiv][x] = 1; 
+      sendOkay = false;
+      Serial.println("98676566");
+      lastButtonPressed = 0;
     }
+  }
+  else
+  {
+    
+  }
+
+
 
 
   //Serial.println("aus schleife raus");
 }
 
 void buttonInterrupt0(){
-  if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0)){
+  if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0))
+  {
     buttonGedrueckt = 1;
     lastInterrupt = millis();
   }
-
-  /*
- seqSpeicher[0][0] =  1;
- seqSpeicher[0][1] =  1;
- seqSpeicher[0][2] =  1;
- seqSpeicher[0][3] =  1;
- seqSpeicher[0][4] =  1;
- seqSpeicher[0][5] =  1;
- seqSpeicher[0][6] =  1;
- seqSpeicher[0][7] =  1;
- */
-
 }
 
 void seqLauflicht (byte schrittNr){
@@ -484,7 +493,6 @@ void seqLauflicht (byte schrittNr){
 void seqTrackToLED(byte trackNr) {
   for (int i=0; i<=7; i++) {
     digitalWriteMCP(i,seqSpeicher[trackNr][i]);
-   // Serial.println(seqSpeicher[trackNr][i]);
     }
   }
 
