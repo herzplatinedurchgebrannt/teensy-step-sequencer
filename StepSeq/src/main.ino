@@ -1,6 +1,6 @@
 #include <Arduino.h>
 
-// MCP23017 and I2C stuff
+//  ***********  MCP23017 and I2C stuff  **************
 #include <Wire.h>
 #include <MCP23017.h> 
 
@@ -9,7 +9,19 @@
 int interruptPin = 26;
 volatile bool event = false;
 byte intCapReg; 
-MCP23017 myMCP(MCP_ADDRESS,27); // 5 = ResetPin
+MCP23017 myMCP(MCP_ADDRESS,27); // 27 = ResetPin
+
+
+
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_BusIO_Register.h>
+#include <Adafruit_GFX.h>
+
+#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
 
 /*
 #include <Adafruit_MCP23017.h>
@@ -34,6 +46,14 @@ bool buttonPressed4 = false;
 
 
 
+
+
+
+
+
+
+
+
 float bpm = 120;
 //int tempo = 1000/(bpm/60)*noteLength;
 
@@ -52,6 +72,8 @@ unsigned long lastTimeStartStop = 0;
 volatile byte buttonGedrueckt = 0;
 unsigned long lastInterrupt = 0;
 
+
+// ************  MIDI STUFF  **************
 
 boolean seqSpeicher[8][8] =   { {1,0,0,0,0,0,0,0},
                                 {1,1,0,0,0,0,0,0},
@@ -72,6 +94,20 @@ int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {44, 127, 1}, //Crash
                           {35, 127, 1}  //Crash
 };
+
+
+
+
+
+String spurNamen [8] = { "KICK", 
+                         "SNARE",
+                         "HIHAT",
+                         "CRASH",
+                         "SHAKER",
+                         "TOM1",
+                         "TOM2",
+                         "TAMBURIN"};
+
 
 
 byte seqSpurAktiv = 0;
@@ -117,7 +153,22 @@ void setup() {
   pinMode(3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(3), trackInterrupt, FALLING);  
 
-  Serial.begin(115200); 
+  Serial.begin(31250); 
+
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // I2C address = 0x3C
+  delay(1000);
+  display.clearDisplay();
+  display.setTextSize(3);     
+  display.setTextColor(WHITE);  
+  display.setCursor(0, 0);  
+  display.print("STEP SEQUENCER");
+  display.display(); 
+  delay(500);
+  display.clearDisplay();
+
+
+
+
 //115200
 //31250
 
@@ -140,6 +191,11 @@ void setup() {
   pinMode(26, INPUT);
 
   pinMode(39, OUTPUT);
+
+
+
+
+
 
   /*
   // Im Register A befinden sich die LEDs, Register A muss auf OUTPUT gestellt werden
@@ -224,6 +280,14 @@ if (changeTrack == true && lastButtonPressed != 0){
   }
 
   debugMessage(2,seqSpurAktiv,lastButtonPressed);
+
+  display.clearDisplay();
+  display.setTextSize(3);     
+  display.setTextColor(WHITE);  
+  display.setCursor(5, 0);  
+  display.print(spurNamen[seqSpurAktiv]);
+  display.display(); 
+
 
   lastTimeTrack = millis();
   changeTrack = false;
@@ -384,8 +448,8 @@ void sendMidiNotes(byte spur, byte schritt){
   for (int i=0; i<=7; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-    usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-    usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+    //usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+    //usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
     }
   }
 }
