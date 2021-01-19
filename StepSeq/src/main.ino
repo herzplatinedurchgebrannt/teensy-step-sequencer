@@ -1,7 +1,7 @@
 #include <Arduino.h>
-
-//  ***********  MCP23017 and I2C stuff  **************
 #include <Wire.h>
+
+//  ***********  MCP23017 STUFF **************
 #include <MCP23017.h> 
 
 #define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
@@ -12,7 +12,7 @@ byte intCapReg;
 MCP23017 myMCP(MCP_ADDRESS,27); // 27 = ResetPin
 
 
-
+//  ***********  Display STUFF **************
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_BusIO_Register.h>
 #include <Adafruit_GFX.h>
@@ -23,10 +23,20 @@ MCP23017 myMCP(MCP_ADDRESS,27); // 27 = ResetPin
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 
-/*
-#include <Adafruit_MCP23017.h>
 
-Adafruit_MCP23017 mcp1;           // Create MCP 1
+
+
+int messungPin1 = LOW;
+int messungPin1Alt = LOW;
+
+int encoderWert = 0;
+int encoderWertAlt = 0;
+
+
+
+
+/*
+
 
 
 const byte START = 250;
@@ -55,6 +65,7 @@ bool buttonPressed4 = false;
 
 
 float bpm = 120;
+float tempo = 1/(bpm/60);
 //int tempo = 1000/(bpm/60)*noteLength;
 
 /*
@@ -93,7 +104,7 @@ int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {39, 127, 1}, //Crash
                           {44, 127, 1}, //Crash
                           {35, 127, 1}  //Crash
-};
+                          };
 
 
 
@@ -155,8 +166,11 @@ void setup() {
 
   Serial.begin(31250); 
 
+
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // I2C address = 0x3C
   delay(1000);
+
+  /*
   display.clearDisplay();
   display.setTextSize(3);     
   display.setTextColor(WHITE);  
@@ -165,6 +179,75 @@ void setup() {
   display.display(); 
   delay(500);
   display.clearDisplay();
+*/
+  display.clearDisplay();
+
+/*
+  display.setTextSize(1); // Draw 2X-scale text
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println(F("STEP SEQUENCER"));
+  display.display();      // Show initial text
+  delay(100);
+
+  // Scroll in various directions, pausing in-between:
+  display.startscrollright(0x00, 0x0F);
+  delay(200);
+  display.stopscroll();
+  delay(100);
+  display.startscrollleft(0x00, 0x0F);
+  delay(200);
+  display.stopscroll();
+  delay(100);
+  display.startscrolldiagright(0x00, 0x07);
+  delay(200);
+  display.startscrolldiagleft(0x00, 0x07);
+  delay(200);
+  display.stopscroll();
+  delay(100);
+  */
+
+
+
+    
+  display.clearDisplay();
+
+  display.fillRect(0,0,128,18,WHITE);
+  display.setTextSize(2);     
+  display.setTextColor(BLACK);  
+  display.setCursor(10, 1);  
+  display.print("SEQUENCER");
+
+  display.drawLine(0,17,128,17,WHITE);
+
+  display.setCursor(1, 25); 
+  display.setTextSize(1); 
+  display.setTextColor(WHITE);  
+  display.print("TEMPO:"); 
+
+  display.setCursor(63, 25); 
+  display.setTextColor(WHITE);  
+  display.print(bpm + (encoderWert - encoderWertAlt)); 
+
+  display.setCursor(1, 40); 
+  display.setTextColor(WHITE);  
+  display.print("SPUR:"); 
+
+  display.setCursor(63, 40); 
+  display.setTextColor(WHITE);  
+  display.print(spurNamen[seqSpurAktiv]); 
+
+  display.display(); 
+
+  delay(500);
+ // display.clearDisplay();
+
+
+
+  pinMode(5, INPUT);
+  pinMode(6, INPUT);
+  pinMode(7, INPUT);
+
 
 
 
@@ -248,10 +331,47 @@ void setup() {
 
 void loop() {
 
+messungPin1 = digitalRead(6);
+
+if ((messungPin1 == HIGH) && (messungPin1Alt == LOW)){
+  if (digitalRead(7) == HIGH){
+    encoderWert++;
+    
+    display.fillRect(63,20,127,20, BLACK);
+    display.setCursor(63, 25); 
+    display.setTextColor(WHITE);  
+    display.print(bpm + (encoderWert - encoderWertAlt)); 
+    bpm = bpm+(encoderWert - encoderWertAlt);
+
+    display.display(); 
+    encoderWertAlt = encoderWert;
+  }
+  else {
+    encoderWert--;
+    
+    display.fillRect(63,20,127,20, BLACK);
+    display.setCursor(63, 25); 
+    display.setTextColor(WHITE);  
+    display.print(bpm + (encoderWert - encoderWertAlt)); 
+    bpm = bpm+(encoderWert - encoderWertAlt);
+    display.display(); 
+
+    encoderWertAlt = encoderWert;
+
+  
+  }
+  Serial.println (encoderWert);
+}
+messungPin1Alt = messungPin1;
+
+
+
+
 if (startStopInterrupt == true && start == true){
   start = false;
   startStopInterrupt = false;
   seqStepAktuell = 0;
+  
 }
 else if (startStopInterrupt == true && start == false){
   start = true;
@@ -281,12 +401,14 @@ if (changeTrack == true && lastButtonPressed != 0){
 
   debugMessage(2,seqSpurAktiv,lastButtonPressed);
 
-  display.clearDisplay();
-  display.setTextSize(3);     
-  display.setTextColor(WHITE);  
-  display.setCursor(5, 0);  
-  display.print(spurNamen[seqSpurAktiv]);
-  display.display(); 
+    display.fillRect(63,40,127,40, BLACK);
+    display.setCursor(63, 40); 
+    display.setTextColor(WHITE);  
+    display.print(spurNamen[seqSpurAktiv]); 
+    display.display(); 
+
+
+
 
 
   lastTimeTrack = millis();
