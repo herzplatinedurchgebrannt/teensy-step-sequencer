@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-//  ***********  MCP23017 STUFF **************
+/************  MCP23017   ***************/
 #include <MCP23017.h> 
 
 #define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
@@ -12,7 +12,7 @@ byte intCapReg;
 MCP23017 myMCP(MCP_ADDRESS,27); // 27 = ResetPin
 
 
-//  ***********  Display STUFF **************
+/************  Display   ***************/
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_BusIO_Register.h>
 #include <Adafruit_GFX.h>
@@ -22,23 +22,19 @@ MCP23017 myMCP(MCP_ADDRESS,27); // 27 = ResetPin
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+enum menuAnwahl {TEMPO, SPUR, MIDI_NOTE, MIDI_VELOCITY};
 
 
-
-
+/************  Encoder   **************/
 int messungPin1 = LOW;
 int messungPin1Alt = LOW;
 
-int encoderWert = 0;
+volatile int encoderWert = 0;
 int encoderWertAlt = 0;
 
 
 
-
-/*
-
-
-
+/************  MIDI IN   **************/
 const byte START = 250;
 const byte CONTINUE = 251;
 const byte STOP = 252;
@@ -48,30 +44,12 @@ const byte CLOCK = 248;
 byte zaehler = 0;
 float zeitAlt = 0;
 
-bool buttonPressed1 = false;
-bool buttonPressed2 = false;
-bool buttonPressed3 = false;
-bool buttonPressed4 = false;
-*/
 
 
-
-
-
-
-
-
-
-
-
+/************  Timer and Tempo   ************/
 float bpm = 120;
 float tempo = 1/(bpm/60);
 //int tempo = 1000/(bpm/60)*noteLength;
-
-/*
-int position = 1;
-int nextPosition = 0;
-*/
 
 unsigned long lastTime = 0;
 unsigned long lastTimeTrack = 0;
@@ -84,8 +62,7 @@ volatile byte buttonGedrueckt = 0;
 unsigned long lastInterrupt = 0;
 
 
-// ************  MIDI STUFF  **************
-
+/************  MIDI OUT   **************/
 boolean seqSpeicher[8][8] =   { {1,0,0,0,0,0,0,0},
                                 {1,1,0,0,0,0,0,0},
                                 {0,1,1,0,0,0,0,0},
@@ -105,10 +82,6 @@ int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {44, 127, 1}, //Crash
                           {35, 127, 1}  //Crash
                           };
-
-
-
-
 
 String spurNamen [8] = { "KICK", 
                          "SNARE",
@@ -139,76 +112,43 @@ int lastButtonPressed = 0;
 
 void setup() {
 
-  /*
-  mcp1.begin();               // Start MCP 1 on Hardware address 0x20
+  
 
-  mcp1.pinMode(0, OUTPUT);
-  mcp1.pinMode(1, OUTPUT);
-  mcp1.pinMode(2, OUTPUT); 
-  mcp1.pinMode(3, OUTPUT); 
-  mcp1.pinMode(4, OUTPUT); 
-  mcp1.pinMode(5, OUTPUT); 
-  mcp1.pinMode(6, OUTPUT); 
-  mcp1.pinMode(7, OUTPUT);  
-  mcp1.pinMode(8, OUTPUT); 
-  */
-  
+
   Wire.begin();
+  Serial.begin(31250); 
   
+  /************  MCP23017 Setup  *************/
   pinMode(interruptPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(interruptPin), buttonInterrupt0, FALLING);
 
+  myMCP.Init();
+  myMCP.setPortMode(B11111111, A);
+  myMCP.setPort(B11111111, A); // kurzer LED Test
+  delay(500); 
+  myMCP.setAllPins(A, OFF);
+  delay(500);
+  myMCP.setInterruptPinPol(LOW);
+  delay(10);
+  myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
+  myMCP.setPortPullUp(B11111111, B);
+  event=false;
+
+
+  /************  Button 1 -STOP- Interrupt  *************/
   pinMode(2, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(2), stopInterrupt, FALLING);  
 
+
+  /************  Button 2 -CHANGETRACK- Interrupt  *************/
   pinMode(3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(3), trackInterrupt, FALLING);  
+  pinMode(39, OUTPUT); // LED Button 2 -> Trackchange
 
-  Serial.begin(31250); 
 
-
+  /************  SSD1306 Setup  *************/
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // I2C address = 0x3C
   delay(1000);
-
-  /*
-  display.clearDisplay();
-  display.setTextSize(3);     
-  display.setTextColor(WHITE);  
-  display.setCursor(0, 0);  
-  display.print("STEP SEQUENCER");
-  display.display(); 
-  delay(500);
-  display.clearDisplay();
-*/
-  display.clearDisplay();
-
-/*
-  display.setTextSize(1); // Draw 2X-scale text
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.println(F("STEP SEQUENCER"));
-  display.display();      // Show initial text
-  delay(100);
-
-  // Scroll in various directions, pausing in-between:
-  display.startscrollright(0x00, 0x0F);
-  delay(200);
-  display.stopscroll();
-  delay(100);
-  display.startscrollleft(0x00, 0x0F);
-  delay(200);
-  display.stopscroll();
-  delay(100);
-  display.startscrolldiagright(0x00, 0x07);
-  delay(200);
-  display.startscrolldiagleft(0x00, 0x07);
-  delay(200);
-  display.stopscroll();
-  delay(100);
-  */
-
-
-
     
   display.clearDisplay();
 
@@ -240,45 +180,24 @@ void setup() {
   display.display(); 
 
   delay(500);
- // display.clearDisplay();
 
 
-
+  /************  Encoder Setup  *************/
   pinMode(5, INPUT);
   pinMode(6, INPUT);
   pinMode(7, INPUT);
+  //attachInterrupt(6, encoderInterrupt, FALLING);
 
 
-
-
-
-//115200
-//31250
-
-  Wire.begin();
-  myMCP.Init();
-  myMCP.setPortMode(B11111111, A);
-  myMCP.setPort(B11111111, A); // kurzer LED Test
-  delay(1000); 
-  myMCP.setAllPins(A, OFF);
-  delay(1000);
-  myMCP.setInterruptPinPol(LOW);
-  delay(10);
-  myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
-  myMCP.setPortPullUp(B11111111, B);
-  event=false;
-
+  /************  Internal LED Setup  *************/
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);
 
+  /************  Reset PIN Setup  *************/
   pinMode(26, INPUT);
 
-  pinMode(39, OUTPUT);
-
-
-
-
-
+  
+  
 
   /*
   // Im Register A befinden sich die LEDs, Register A muss auf OUTPUT gestellt werden
@@ -333,6 +252,7 @@ void loop() {
 
 messungPin1 = digitalRead(6);
 
+
 if ((messungPin1 == HIGH) && (messungPin1Alt == LOW)){
   if (digitalRead(7) == HIGH){
     encoderWert++;
@@ -356,9 +276,7 @@ if ((messungPin1 == HIGH) && (messungPin1Alt == LOW)){
     bpm = bpm+(encoderWert - encoderWertAlt);
     display.display(); 
 
-    encoderWertAlt = encoderWert;
-
-  
+    encoderWertAlt = encoderWert;  
   }
   Serial.println (encoderWert);
 }
@@ -371,13 +289,11 @@ if (startStopInterrupt == true && start == true){
   start = false;
   startStopInterrupt = false;
   seqStepAktuell = 0;
-  
 }
 else if (startStopInterrupt == true && start == false){
   start = true;
   startStopInterrupt = false;
 }
-
 
 if (changeTrack == true){
   digitalWrite(39, HIGH);
@@ -386,42 +302,27 @@ if (changeTrack == true){
 
 if (changeTrack == true && lastButtonPressed != 0){
 
-  debugMessage(1,seqSpurAktiv,lastButtonPressed);
-  
-  /*
-  seqSpurAktiv = seqSpurAktiv +1;
-  
-  if (seqSpurAktiv >= 4){
-    seqSpurAktiv = 0;
-  }
-  */
   if (lastButtonPressed != 0){
     seqSpurAktiv = lastButtonPressed-1;
   }
-
-  debugMessage(2,seqSpurAktiv,lastButtonPressed);
-
     display.fillRect(63,40,127,40, BLACK);
     display.setCursor(63, 40); 
     display.setTextColor(WHITE);  
     display.print(spurNamen[seqSpurAktiv]); 
     display.display(); 
 
-
-
-
-
   lastTimeTrack = millis();
   changeTrack = false;
 
-  // in diesem Durchlauf darf Controller keine Note mehr sagen aufgrund von ChangeTrack
-  sendOkay = false;
-
-  digitalWrite(39, LOW);
+  sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+  digitalWrite(39, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
 }
 
-  intCapReg = myMCP.getIntCap(B);
+  intCapReg = myMCP.getIntCap(B);  // Register muss hier ausgelesen werden, dadurch wird der Interrupt abgelöscht
+  /*
   if(event){
+
+    Serial.println("lalalalalalala");
     delay(200);
     
     byte intFlagReg, eventPin; 
@@ -430,13 +331,13 @@ if (changeTrack == true && lastButtonPressed != 0){
     intFlagReg = myMCP.getIntFlag(B);
     eventPin = log(intFlagReg)/log(2);
     
-    /*
+    
     test = log(intFlagReg);
     test2 = log(2);
     Serial.println("hallo!");
     Serial.println(test);
     Serial.println(test2);
-    */
+    
     
     
     intCapReg = myMCP.getIntCap(B);
@@ -459,7 +360,7 @@ if (changeTrack == true && lastButtonPressed != 0){
     
     event = false;
   }
-  
+  */
   /*
    // read the inputs of bank B
   Wire.beginTransmission(0x20);
@@ -565,6 +466,7 @@ delay(1000);
   }
 }
 
+// sendet MIDI Noten aus dem aktuellen S
 void sendMidiNotes(byte spur, byte schritt){
   
   for (int i=0; i<=7; i++){
@@ -576,6 +478,19 @@ void sendMidiNotes(byte spur, byte schritt){
   }
 }
 
+
+/*  ZUERST KONDENSATOR EINBAUEN!!!
+void encoderInterrupt(){
+  if (digitalRead(7) == HIGH){
+    encoderWert++;
+  }
+  else {
+    encoderWert--;
+  }
+}
+*/
+
+// Interrupt, welcher die aktuelle Spur ändert
 void trackInterrupt(){
   if (( millis()-lastTimeTrack >= 50) && changeTrack == false){
     changeTrack = true;
@@ -583,6 +498,7 @@ void trackInterrupt(){
   }
 }
 
+// Interrupt, welcher den Sequencer startet+stoppt
 void stopInterrupt(){
   if (( millis()-lastTimeStartStop >= 100) && startStopInterrupt == false){
     startStopInterrupt = true;
@@ -590,19 +506,7 @@ void stopInterrupt(){
   }
 }
 
-void debugMessage (int stelle, int variable1, int variable2){
-  Serial.println("...");
-  Serial.println("Debugging startet hier. Stelle:");
-  Serial.println(stelle);
-  Serial.println("Integer Variable 1:");
-  Serial.println(variable1);
-  Serial.println("Integer Variable 2:");
-  Serial.println(variable1);
-  Serial.println("Debugging ENDE");
-  Serial.println("...");
-  Serial.println("...");
-}
-
+// Buttons werden abgefragt
 void buttonsAbfragen(byte woGedrueckt) {
    byte statusICR = 0;
    byte mcpWahl = 0;
@@ -623,6 +527,7 @@ void buttonsAbfragen(byte woGedrueckt) {
    if (statusICR != 0) { seqNoteSchreiben(statusICR); }
 }
 
+// Schreibt Werte in den SeqSpeicher
 void seqNoteSchreiben(byte noteInBits){
   byte x = 0;
 
@@ -642,14 +547,14 @@ void seqNoteSchreiben(byte noteInBits){
     { 
       seqSpeicher[seqSpurAktiv][x]=0; 
       sendOkay = false;
-      Serial.println("HAHJAHAHA");
+      Serial.println("Note 0");
       lastButtonPressed = 0;
     }
     else 
     {
       seqSpeicher[seqSpurAktiv][x] = 1; 
       sendOkay = false;
-      Serial.println("98676566");
+      Serial.println("Note 1");
       lastButtonPressed = 0;
     }
   }
@@ -664,6 +569,7 @@ void seqNoteSchreiben(byte noteInBits){
   //Serial.println("aus schleife raus");
 }
 
+// Button von MPC23017-1 wird gedrückt
 void buttonInterrupt0(){
   if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0))
   {
@@ -672,17 +578,20 @@ void buttonInterrupt0(){
   }
 }
 
+// Invertiert den aktuellen LED-Status, damit ein Lauflichteffekt entsteht
 void seqLauflicht (byte schrittNr){
   if (seqSpeicher[seqSpurAktiv][schrittNr] == 1){ digitalWriteMCP(schrittNr,0);}
   else {digitalWriteMCP(schrittNr,1);}
 }
 
+// Schaltet die LEDs der aktiven Spur so wie im SeqSpeicher an/aus
 void seqTrackToLED(byte trackNr) {
   for (int i=0; i<=7; i++) {
     digitalWriteMCP(i,seqSpeicher[trackNr][i]);
     }
   }
 
+// Schreibt in die Register des MCP23017 
 void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   byte statusGP = 0;
   byte pinNumber = 0;
@@ -715,18 +624,28 @@ void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   Wire.write(0x12);
   Wire.write(statusGP);
   Wire.endTransmission();
+}
 
 
+
+
+void debugMessage (int stelle, int variable1, int variable2){
+  Serial.println("...");
+  Serial.println("Debugging startet hier. Stelle:");
+  Serial.println(stelle);
+  Serial.println("Integer Variable 1:");
+  Serial.println(variable1);
+  Serial.println("Integer Variable 2:");
+  Serial.println(variable1);
+  Serial.println("Debugging ENDE");
+  Serial.println("...");
+  Serial.println("...");
 }
 
 
 
 
 
-
-
-
-/*
 void beatClock(byte realtimebyte) {
   if(realtimebyte == START) { zaehler = 0; zeitAlt = millis(); }
   if(realtimebyte == CONTINUE) { zeitAlt = millis(); }
@@ -749,13 +668,6 @@ void beatClock(byte realtimebyte) {
     Serial.println(" BPM");
     zeitAlt = millis();
   }
-}*/
-
-
-
-////////////////////////////////////// SCHROTT /////////////////////////////////////////////////////////////////////////////
-
-
-void eventHappened(){
-  event = true;
 }
+
+
