@@ -12,6 +12,9 @@ byte intCapReg;
 MCP23017 myMCP(MCP_ADDRESS,27); // 27 = ResetPin
 
 
+MCP23017 myMCP2(0x21,27); // 27 = ResetPin
+int interruptPin2 = 28;
+
 /************  Display   ***************/
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_BusIO_Register.h>
@@ -63,14 +66,14 @@ unsigned long lastInterrupt = 0;
 
 
 /************  MIDI OUT   **************/
-boolean seqSpeicher[8][8] =   { {1,0,0,0,0,0,0,0},
-                                {1,1,0,0,0,0,0,0},
-                                {0,1,1,0,0,0,0,0},
-                                {0,0,1,1,0,0,0,0},
-                                {0,0,0,1,1,0,0,0},
-                                {0,0,0,0,1,1,0,0},
-                                {0,0,0,0,0,1,1,0},
-                                {0,0,0,0,0,0,1,1} 
+boolean seqSpeicher[8][16] =   {{1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1},
+                                {1,1,0,0,0,0,0,0,1,0,0,0,0,0,1,0},
+                                {0,1,1,0,0,0,0,0,1,0,0,0,0,1,0,0},
+                                {0,0,1,1,0,0,0,0,1,0,0,0,1,0,0,0},
+                                {0,0,0,1,1,0,0,0,1,0,0,1,0,0,0,0},
+                                {0,0,0,0,1,1,0,0,1,0,1,0,0,0,0,0},
+                                {0,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0} 
                                 };
 
 int midiNotes [8][3] = {  {36, 127, 1}, //Kick
@@ -133,6 +136,18 @@ void setup() {
   myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
   myMCP.setPortPullUp(B11111111, B);
   event=false;
+
+  attachInterrupt(digitalPinToInterrupt(interruptPin2), buttonInterrupt1, FALLING);
+  myMCP2.Init();
+  myMCP2.setPortMode(B11111111, A);
+  myMCP2.setPort(B11111111, A); // kurzer LED Test
+  delay(500); 
+  myMCP2.setAllPins(A, OFF);
+  delay(500);
+  myMCP2.setInterruptPinPol(LOW);
+  delay(10);
+  myMCP2.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
+  myMCP2.setPortPullUp(B11111111, B);
 
 
   /************  Button 1 -STOP- Interrupt  *************/
@@ -250,6 +265,8 @@ void setup() {
 
 void loop() {
 
+  
+
 messungPin1 = digitalRead(6);
 
 
@@ -319,6 +336,9 @@ if (changeTrack == true && lastButtonPressed != 0){
 }
 
   intCapReg = myMCP.getIntCap(B);  // Register muss hier ausgelesen werden, dadurch wird der Interrupt abgelöscht
+  intCapReg = myMCP2.getIntCap(B);
+  
+  
   /*
   if(event){
 
@@ -446,7 +466,7 @@ delay(1000);
 
     // Schritt hochzählen
     seqStepAktuell = seqStepAktuell + 1;
-    if (seqStepAktuell == 8){ seqStepAktuell = 0;}
+    if (seqStepAktuell == 16){ seqStepAktuell = 0;}
 
     // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
     lastTime = millis();
@@ -460,7 +480,7 @@ delay(1000);
     buttonGedrueckt = 0;    
   }
 
-  if (digitalRead(26) == 1)
+  if (digitalRead(26) == 1 && digitalRead(28) == 1)
   {
     sendOkay = true;
   }
@@ -469,11 +489,11 @@ delay(1000);
 // sendet MIDI Noten aus dem aktuellen S
 void sendMidiNotes(byte spur, byte schritt){
   
-  for (int i=0; i<=7; i++){
+  for (int i=0; i<=15; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-    //usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-    //usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+    usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+    usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
     }
   }
 }
@@ -511,25 +531,33 @@ void buttonsAbfragen(byte woGedrueckt) {
    byte statusICR = 0;
    byte mcpWahl = 0;
 
-   if (woGedrueckt == 1 ) {  mcpWahl = 0; }
-   if (woGedrueckt == 2 ) {  mcpWahl = 1; }
+   if (woGedrueckt == 1 ) {  mcpWahl = 0x20; }
+   if (woGedrueckt == 2 ) {  mcpWahl = 0x21; }
 
-   Wire.beginTransmission(0x20);
+   Wire.beginTransmission(mcpWahl);
    Wire.write(0x0F);
    Wire.endTransmission();
-   Wire.requestFrom(0x20,1);
+   Wire.requestFrom(mcpWahl,1);
    statusICR = Wire.read();
    Wire.endTransmission();
 
   // Serial.println(statusICR);
    lastButtonPressed = statusICR;
 
-   if (statusICR != 0) { seqNoteSchreiben(statusICR); }
+   if (statusICR != 0) { seqNoteSchreiben(statusICR, mcpWahl); }
 }
 
 // Schreibt Werte in den SeqSpeicher
-void seqNoteSchreiben(byte noteInBits){
+void seqNoteSchreiben(byte noteInBits, int mcpNummer){
   byte x = 0;
+
+
+  if (mcpNummer == 0x21){
+    mcpNummer = 8;
+  }
+  else {
+    mcpNummer = 0;
+  }
 
   while ( bitRead(noteInBits, x) == 0) 
   {
@@ -543,16 +571,16 @@ void seqNoteSchreiben(byte noteInBits){
   {
     
 
-    if (seqSpeicher[seqSpurAktiv][x] ==  1) 
+    if (seqSpeicher[seqSpurAktiv][x + mcpNummer] ==  1) 
     { 
-      seqSpeicher[seqSpurAktiv][x]=0; 
+      seqSpeicher[seqSpurAktiv][x + mcpNummer]=0; 
       sendOkay = false;
       Serial.println("Note 0");
       lastButtonPressed = 0;
     }
     else 
     {
-      seqSpeicher[seqSpurAktiv][x] = 1; 
+      seqSpeicher[seqSpurAktiv][x + mcpNummer] = 1; 
       sendOkay = false;
       Serial.println("Note 1");
       lastButtonPressed = 0;
@@ -578,6 +606,14 @@ void buttonInterrupt0(){
   }
 }
 
+void buttonInterrupt1(){
+  if ( ( millis()-lastInterrupt >= 50) && (buttonGedrueckt == 0))
+  {
+    buttonGedrueckt = 2;
+    lastInterrupt = millis();
+  }
+}
+
 // Invertiert den aktuellen LED-Status, damit ein Lauflichteffekt entsteht
 void seqLauflicht (byte schrittNr){
   if (seqSpeicher[seqSpurAktiv][schrittNr] == 1){ digitalWriteMCP(schrittNr,0);}
@@ -586,7 +622,7 @@ void seqLauflicht (byte schrittNr){
 
 // Schaltet die LEDs der aktiven Spur so wie im SeqSpeicher an/aus
 void seqTrackToLED(byte trackNr) {
-  for (int i=0; i<=7; i++) {
+  for (int i=0; i<=15; i++) {
     digitalWriteMCP(i,seqSpeicher[trackNr][i]);
     }
   }
@@ -597,17 +633,17 @@ void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   byte pinNumber = 0;
   byte mcpWahl = 0;
 
-  /*
+  
 
-  if ( stepNummer >= 16){ mcpWahl = 1; }
-  else {mcpWahl = 0;}
-  */
+  if ( stepNummer >= 8){ mcpWahl = 0x21; }
+  else {mcpWahl = 0x20;}
+  
 
 
-  Wire.beginTransmission(0x20);
+  Wire.beginTransmission(mcpWahl);
   Wire.write(0x12);
   Wire.endTransmission();
-  Wire.requestFrom(0x20, 1);
+  Wire.requestFrom(mcpWahl, 1);
   statusGP = Wire.read();
   Wire.endTransmission();
 
@@ -620,7 +656,7 @@ void digitalWriteMCP(byte stepNummer, boolean anOderAus){
   else if (anOderAus == 1) { statusGP |= (B00000001 << (pinNumber));
   }
 
-  Wire.beginTransmission(0x20);
+  Wire.beginTransmission(mcpWahl);
   Wire.write(0x12);
   Wire.write(statusGP);
   Wire.endTransmission();
