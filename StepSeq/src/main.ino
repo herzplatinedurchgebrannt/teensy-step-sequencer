@@ -59,6 +59,7 @@ float tempo = (1000.000/(bpm/60*noteLength))-offset;
 
 float bpmClock = 0;
 
+int changeTempo = false;
 
 
 
@@ -317,7 +318,7 @@ void loop() {
 
  rotating = true;  // reset the debouncer
 
-  if (lastReportedPos != encoderPos)
+  if (lastReportedPos != encoderPos || changeTempo == true)
   {
     Serial.print("Index:");
     Serial.println(encoderPos, DEC);
@@ -337,6 +338,7 @@ void loop() {
 
     lastReportedPos = encoderPos;
 
+    changeTempo = false;
 
 
 
@@ -578,7 +580,7 @@ void sendMidiNotes(byte spur, byte schritt){
     {
    usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
    usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
-   Serial.println(millis());
+   //Serial.println(millis());
    
     }
   }
@@ -807,29 +809,25 @@ void beatClock(byte realtimebyte) {
   if(realtimebyte == STOP) { digitalWrite(13, LOW); }
   
   if(realtimebyte == CLOCK) {
-    Serial.println(millis());
-    Serial.println(zaehler);
+    
     zaehler++;
-    if (zaehler == 25) {zaehler = 1;}
-
+    if (zaehler == 97) {zaehler = 1;}
+    if(zaehler == 1 || zaehler == 24 || zaehler == 48 || zaehler == 72) { 
+      digitalWrite(13, HIGH);
+    } 
+    if(zaehler == 5 || zaehler == 25 || zaehler == 49 || zaehler == 73) { 
+      digitalWrite(13, LOW);
+    }
   }
 
-  if (zaehler == 24) {
-    bpmClock = round((60000 / (millis() - zeitAlt)));
-    tempo = (1000.000/(bpmClock/60*noteLength))-offset;
+  if (zaehler == 24 || zaehler == 48 || zaehler == 72 || zaehler == 96 ) {
+    bpm = round((60000 / (millis() - zeitAlt)));
 
-    bpm = bpmClock;
-
-    display.fillRect(63,20,127,20, BLACK);
-    display.setCursor(63, 25); 
-    display.setTextColor(WHITE);  
-    
-    display.print(bpmClock); 
-
-    display.display(); 
+    changeTempo = true;
 
 
-    Serial.print(bpmClock);
+
+    Serial.print(bpm);
     Serial.println(" BPM");
     zeitAlt = millis();
   }
