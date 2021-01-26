@@ -36,6 +36,8 @@ volatile int encoderWert = 0;
 int encoderWertAlt = 0;
 
 
+volatile int encoderWertTest = 0;
+
 
 /************  MIDI IN   **************/
 const byte START = 250;
@@ -50,8 +52,16 @@ float zeitAlt = 0;
 
 
 /************  Timer and Tempo   ************/
-float bpm = 120;
-float tempo = 1/(bpm/60);
+float noteLength = 4.000;
+float bpm = 120.000;
+float offset = 15;
+float tempo = (1000.000/(bpm/60*noteLength))-offset;
+
+float bpmClock = 0;
+
+
+
+
 //int tempo = 1000/(bpm/60)*noteLength;
 
 unsigned long lastTime = 0;
@@ -66,14 +76,14 @@ unsigned long lastInterrupt = 0;
 
 
 /************  MIDI OUT   **************/
-boolean seqSpeicher[8][16] =   {{1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1},
-                                {1,1,0,0,0,0,0,0,1,0,0,0,0,0,1,0},
-                                {0,1,1,0,0,0,0,0,1,0,0,0,0,1,0,0},
-                                {0,0,1,1,0,0,0,0,1,0,0,0,1,0,0,0},
-                                {0,0,0,1,1,0,0,0,1,0,0,1,0,0,0,0},
-                                {0,0,0,0,1,1,0,0,1,0,1,0,0,0,0,0},
-                                {0,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0},
-                                {0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0} 
+boolean seqSpeicher[8][16] =   {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
                                 };
 
 int midiNotes [8][3] = {  {36, 127, 1}, //Kick
@@ -111,6 +121,23 @@ volatile bool startStopInterrupt = false;
 bool start = true;
 
 int lastButtonPressed = 0;
+
+
+
+
+
+#define encoderPinA 6
+#define encoderPinB 7
+
+volatile int encoderPos = 0;  // a counter for the dial
+int lastReportedPos = 1;   // change management
+static boolean rotating=false;      // debounce management
+
+// interrupt service routine vars
+boolean A_set = false;            
+boolean B_set = false;
+
+
 
 
 void setup() {
@@ -182,7 +209,7 @@ void setup() {
 
   display.setCursor(63, 25); 
   display.setTextColor(WHITE);  
-  display.print(bpm + (encoderWert - encoderWertAlt)); 
+  display.print(bpm); 
 
   display.setCursor(1, 40); 
   display.setTextColor(WHITE);  
@@ -198,9 +225,9 @@ void setup() {
 
 
   /************  Encoder Setup  *************/
-  pinMode(5, INPUT);
-  pinMode(6, INPUT);
-  pinMode(7, INPUT);
+ // pinMode(5, INPUT);
+ // pinMode(6, INPUT);
+ // pinMode(7, INPUT);
   //attachInterrupt(6, encoderInterrupt, FALLING);
 
 
@@ -259,14 +286,63 @@ void setup() {
   Wire.endTransmission();
   */
   
-  /*usbMIDI.setHandleRealTimeSystem(beatClock);
-  */
+  usbMIDI.setHandleRealTimeSystem(beatClock);
+  
+
+
+ 
+
+
+
+pinMode(encoderPinA, INPUT);
+
+
+  pinMode(encoderPinB, INPUT); 
+
+  digitalWrite(encoderPinA, HIGH);  // turn on pullup resistors
+  digitalWrite(encoderPinB, HIGH);  // turn on pullup resistors
+
+  attachInterrupt(6, doEncoderA, CHANGE); // encoder pin on interrupt 0 (pin 2)
+  attachInterrupt(7, doEncoderB, CHANGE); // encoder pin on interrupt 1 (pin 3)
+
 } 
+bool fuck = true;
+
+
+
+
 
 void loop() {
 
-  
 
+ rotating = true;  // reset the debouncer
+
+  if (lastReportedPos != encoderPos)
+  {
+    Serial.print("Index:");
+    Serial.println(encoderPos, DEC);
+
+    display.fillRect(63,20,127,20, BLACK);
+    display.setCursor(63, 25); 
+    display.setTextColor(WHITE);  
+    
+     
+    bpm = bpm+(encoderPos-lastReportedPos);
+    display.print(bpm); 
+
+    display.display(); 
+
+    tempo = (1000.000/(bpm/60*noteLength))-offset;
+
+
+    lastReportedPos = encoderPos;
+
+
+
+
+  }
+
+/*
 messungPin1 = digitalRead(6);
 
 
@@ -298,7 +374,7 @@ if ((messungPin1 == HIGH) && (messungPin1Alt == LOW)){
   Serial.println (encoderWert);
 }
 messungPin1Alt = messungPin1;
-
+*/
 
 
 
@@ -311,6 +387,9 @@ else if (startStopInterrupt == true && start == false){
   start = true;
   startStopInterrupt = false;
 }
+
+
+
 
 if (changeTrack == true){
   digitalWrite(39, HIGH);
@@ -450,10 +529,12 @@ Wire.endTransmission();
 delay(1000);
 
 */
-
+    usbMIDI.read();
   // Hier ist die Zeitschleife
-  if (millis()-lastTime >= bpm  && start == true)
+  if (millis()-lastTime >= tempo  && start == true && fuck == true)
   {
+
+    
     
     // LEDs von der aktuell angewählten Spur werden angezeigt
     seqTrackToLED(seqSpurAktiv);
@@ -471,8 +552,11 @@ delay(1000);
     // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
     lastTime = millis();
 
-    //usbMIDI.read();
+
   }
+
+
+  
 
   if (buttonGedrueckt != 0 && sendOkay == true)
   {
@@ -489,26 +573,58 @@ delay(1000);
 // sendet MIDI Noten aus dem aktuellen S
 void sendMidiNotes(byte spur, byte schritt){
   
-  for (int i=0; i<=15; i++){
+  for (int i=0; i<=7; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-    usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-    usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+   usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+   usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+   Serial.println(millis());
+   
     }
   }
 }
 
 
-/*  ZUERST KONDENSATOR EINBAUEN!!!
+
+
+void doEncoderA()
+{
+  if ( rotating ) /*delay (1)*/;  // wait a little until the bouncing is done
+  if( digitalRead(encoderPinA) != A_set ) {  // debounce once more
+    A_set = !A_set;
+    // adjust counter + if A leads B
+    if ( A_set && !B_set ) 
+      encoderPos += 1;
+    rotating = false;  // no more debouncing until loop() hits again
+  }
+}
+
+// Interrupt on B changing state, same as A above
+void doEncoderB(){
+  if ( rotating ) /*delay*/ (1);
+  if( digitalRead(encoderPinB) != B_set ) {
+    B_set = !B_set;
+    //  adjust counter - 1 if B leads A
+    if( B_set && !A_set ) 
+      encoderPos -= 1;
+    rotating = false;
+  }
+}
+
+/*
+// SCHROTTT
 void encoderInterrupt(){
+  if ( millis()-lastTimeTrack >= 100){
   if (digitalRead(7) == HIGH){
     encoderWert++;
   }
   else {
     encoderWert--;
   }
-}
-*/
+  lastTimeTrack = millis();
+  
+}}*/
+
 
 // Interrupt, welcher die aktuelle Spur ändert
 void trackInterrupt(){
@@ -683,24 +799,37 @@ void debugMessage (int stelle, int variable1, int variable2){
 
 
 void beatClock(byte realtimebyte) {
+
+  
+
   if(realtimebyte == START) { zaehler = 0; zeitAlt = millis(); }
   if(realtimebyte == CONTINUE) { zeitAlt = millis(); }
   if(realtimebyte == STOP) { digitalWrite(13, LOW); }
   
   if(realtimebyte == CLOCK) {
+    Serial.println(millis());
+    Serial.println(zaehler);
     zaehler++;
-    if (zaehler == 97) {zaehler = 1;}
-    if(zaehler == 1 || zaehler == 24 || zaehler == 48 || zaehler == 72) { 
-      digitalWrite(13, HIGH);
-    } 
-    if(zaehler == 5 || zaehler == 25 || zaehler == 49 || zaehler == 73) { 
-      digitalWrite(13, LOW);
-    }
+    if (zaehler == 25) {zaehler = 1;}
+
   }
 
-  if (zaehler == 24 || zaehler == 48 || zaehler == 72 || zaehler == 96 ) {
-    bpm = round((60000 / (millis() - zeitAlt)));
-    Serial.print(bpm);
+  if (zaehler == 24) {
+    bpmClock = round((60000 / (millis() - zeitAlt)));
+    tempo = (1000.000/(bpmClock/60*noteLength))-offset;
+
+    bpm = bpmClock;
+
+    display.fillRect(63,20,127,20, BLACK);
+    display.setCursor(63, 25); 
+    display.setTextColor(WHITE);  
+    
+    display.print(bpmClock); 
+
+    display.display(); 
+
+
+    Serial.print(bpmClock);
     Serial.println(" BPM");
     zeitAlt = millis();
   }
