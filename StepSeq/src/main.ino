@@ -4,6 +4,34 @@
 /************  MCP23017   ***************/
 #include <MCP23017.h> 
 
+#define IODIRA 0x00   
+#define IODIRB 0x01   
+#define IOCONA 0x0A   
+#define IOCONB 0x0B  
+#define INTCAPA 0x10  
+#define INTCAPB 0x11  
+#define INTCONA 0x08  
+#define INTCONB 0x09  
+#define INTFA 0x0E    
+#define INTFB 0x0F
+#define GPINTENA 0x04 
+#define GPINTENB 0x05
+#define DEFVALA 0x06  
+#define DEFVALB 0x07
+#define IPOLA 0x02	 
+#define GPIOA 0x12    
+#define GPIOB 0x13
+#define INTPOL 1	
+#define INTODR 2
+#define MIRROR 6	
+#define GPPUA 0x0C	
+#define GPPUB 0x0D
+
+
+
+
+
+
 #define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
 
 int interruptPin = 26;
@@ -153,17 +181,97 @@ void setup() {
   pinMode(interruptPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(interruptPin), buttonInterrupt0, FALLING);
 
+
+
+
+
+
   myMCP.Init();
-  myMCP.setPortMode(B11111111, A);
-  myMCP.setPort(B11111111, A); // kurzer LED Test
+
+
+  Wire.beginTransmission(0x20);
+  Wire.write(IODIRA); // IODIRA register
+  Wire.write(B00000000); // set all of bank A to outputs
+  Wire.endTransmission();
+
+  Wire.beginTransmission(0x20);
+  Wire.write(GPIOA); // GPIOA register
+  Wire.write(B11111111); // LEDs anschalten
+  Wire.endTransmission();
+
+ // myMCP.setPortMode(B11111111, A);
+ // myMCP.setPort(B11111111, A); // kurzer LED Test
   delay(500); 
-  myMCP.setAllPins(A, OFF);
+
+
+
+
+  Wire.beginTransmission(0x20);
+  Wire.write(GPIOA); // GPIOA register
+  Wire.write(B00000000); // LEDs ausschalten
+  Wire.endTransmission();
+
+  //myMCP.setAllPins(A, OFF);
   delay(500);
-  myMCP.setInterruptPinPol(LOW);
+
+
+
+  Wire.beginTransmission(0x20);
+  Wire.write(IOCONA); // IODIRA register
+  Wire.write(B00000000); // set all of bank A to outputs
+  Wire.endTransmission();
+
+  Wire.beginTransmission(0x20);
+  Wire.write(IOCONB); // IODIRA register
+  Wire.write(B00000000); // set all of bank A to outputs
+  Wire.endTransmission();
+
+ // myMCP.setInterruptPinPol(LOW);
+
   delay(10);
-  myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
-  myMCP.setPortPullUp(B11111111, B);
+
+  Wire.beginTransmission(0x20);
+  Wire.write(IODIRB); // 
+  Wire.write(B11111111); // 
+  Wire.endTransmission();
+
+  Wire.beginTransmission(0x20);
+  Wire.write(GPINTENB); // 
+  Wire.write(B11111111); // 
+  Wire.endTransmission();
+
+  Wire.beginTransmission(0x20);
+  Wire.write(INTCONB); // 
+  Wire.write(B11111111); // 
+  Wire.endTransmission();
+
+  Wire.beginTransmission(0x20);
+  Wire.write(DEFVALB); // 
+  Wire.write(B11111111); // 
+  Wire.endTransmission();
+
+
+  //myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
+
+  Wire.beginTransmission(0x20);
+  Wire.write(GPPUB); // 
+  Wire.write(B11111111); // 
+  Wire.endTransmission();
+
+  //myMCP.setPortPullUp(B11111111, B);
+  
+  
+  
+  
   event=false;
+
+
+
+
+
+
+
+
 
   attachInterrupt(digitalPinToInterrupt(interruptPin2), buttonInterrupt1, FALLING);
   myMCP2.Init();
@@ -287,7 +395,7 @@ void setup() {
   Wire.endTransmission();
   */
   
-  usbMIDI.setHandleRealTimeSystem(beatClock);
+  //usbMIDI.setHandleRealTimeSystem(beatClock);
   
 
 
@@ -531,7 +639,7 @@ Wire.endTransmission();
 delay(1000);
 
 */
-    usbMIDI.read();
+    //usbMIDI.read();
   // Hier ist die Zeitschleife
   if (millis()-lastTime >= tempo  && start == true && fuck == true)
   {
@@ -578,8 +686,8 @@ void sendMidiNotes(byte spur, byte schritt){
   for (int i=0; i<=7; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-   usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-   usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+   //usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+   //usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
    //Serial.println(millis());
    
     }
