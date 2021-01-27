@@ -115,6 +115,97 @@ boolean seqSpeicher[8][16] =   {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
                                 };
 
+
+
+
+
+boolean pretset1[8][16] =      {{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
+                                };
+
+boolean pretset2[8][16] =      {{0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
+                                };
+
+boolean pretset3[8][16] =      {{0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0} 
+                                };
+
+boolean pretset4[8][16] =      {{0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0} 
+                                };
+
+boolean pretset5[8][16] =      {{0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0} 
+                                };
+
+boolean pretset6[8][16] =      {{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0} 
+                                };
+
+boolean pretset7[8][16] =      {{0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0} 
+                                };
+
+boolean pretset8[8][16] =      {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
+                                };
+
+
+
+
+
+
+
+
 int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {38, 127, 1}, //Snare
                           {42, 127, 1}, //Hat
@@ -191,7 +282,7 @@ void setup() {
 
   Wire.beginTransmission(0x20);
   Wire.write(IODIRA); // IODIRA register
-  Wire.write(B00000000); // set all of bank A to outputs
+  Wire.write(B00000000); // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   Wire.endTransmission();
 
   Wire.beginTransmission(0x20);
@@ -216,46 +307,51 @@ void setup() {
 
 
 
+
   Wire.beginTransmission(0x20);
-  Wire.write(IOCONA); // IODIRA register
-  Wire.write(B00000000); // set all of bank A to outputs
+  Wire.write(IOCONA); // IOCONA register
+  Wire.write(B00000000); // set InterruptPinPol Interrupt bei LOW-Signal
   Wire.endTransmission();
 
   Wire.beginTransmission(0x20);
-  Wire.write(IOCONB); // IODIRA register
-  Wire.write(B00000000); // set all of bank A to outputs
+  Wire.write(IOCONB); // IOCONB register
+  Wire.write(B00000000); // set InterruptPinPol Interrupt bei LOW-Signal
   Wire.endTransmission();
 
  // myMCP.setInterruptPinPol(LOW);
 
   delay(10);
 
+
+
+
+
   Wire.beginTransmission(0x20);
-  Wire.write(IODIRB); // 
-  Wire.write(B11111111); // 
+  Wire.write(IODIRB); // IODIRB Register
+  Wire.write(B11111111); // IO Direction Register: 1=Input, 0=Output, Buttons als Input
   Wire.endTransmission();
 
   Wire.beginTransmission(0x20);
-  Wire.write(GPINTENB); // 
-  Wire.write(B11111111); // 
+  Wire.write(GPINTENB); // GPINTENB Register
+  Wire.write(B11111111); // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
   Wire.endTransmission();
 
   Wire.beginTransmission(0x20);
-  Wire.write(INTCONB); // 
-  Wire.write(B11111111); // 
+  Wire.write(INTCONB); // INTCONB Register
+  Wire.write(B11111111); // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
   Wire.endTransmission();
 
   Wire.beginTransmission(0x20);
-  Wire.write(DEFVALB); // 
-  Wire.write(B11111111); // 
+  Wire.write(DEFVALB); // DEFVALB Register
+  Wire.write(B11111111); // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   Wire.endTransmission();
 
 
   //myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
 
   Wire.beginTransmission(0x20);
-  Wire.write(GPPUB); // 
-  Wire.write(B11111111); // 
+  Wire.write(GPPUB); // GPPUB Register
+  Wire.write(B11111111); // Pull-up Widerstände für Buttons aktivieren
   Wire.endTransmission();
 
   //myMCP.setPortPullUp(B11111111, B);
@@ -306,10 +402,14 @@ void setup() {
   display.fillRect(0,0,128,18,WHITE);
   display.setTextSize(2);     
   display.setTextColor(BLACK);  
-  display.setCursor(10, 1);  
+  display.setCursor(1, 1);  
   display.print("SEQUENCER");
 
-  display.drawLine(0,17,128,17,WHITE);
+
+  display.fillRect(110,0,128,16,BLACK);
+  display.fillRect(112,0,126,15,WHITE);
+
+
 
   display.setCursor(1, 25); 
   display.setTextSize(1); 
@@ -395,7 +495,7 @@ void setup() {
   Wire.endTransmission();
   */
   
-  //usbMIDI.setHandleRealTimeSystem(beatClock);
+  usbMIDI.setHandleRealTimeSystem(beatClock);
   
 
 
@@ -403,9 +503,7 @@ void setup() {
 
 
 
-pinMode(encoderPinA, INPUT);
-
-
+  pinMode(encoderPinA, INPUT);
   pinMode(encoderPinB, INPUT); 
 
   digitalWrite(encoderPinA, HIGH);  // turn on pullup resistors
@@ -434,6 +532,8 @@ void loop() {
     display.fillRect(63,20,127,20, BLACK);
     display.setCursor(63, 25); 
     display.setTextColor(WHITE);  
+
+
     
      
     bpm = bpm+(encoderPos-lastReportedPos);
@@ -446,46 +546,29 @@ void loop() {
 
     lastReportedPos = encoderPos;
 
+    
+
+    if (changeTempo == true){
+        display.fillRect(112,0,126,15,WHITE);
+        display.setTextSize(1);     
+        display.setTextColor(BLACK);  
+        display.setCursor(114, 4);  
+        display.print("CL");
+        display.display(); 
+    }
+    else {
+        display.fillRect(112,0,126,15,WHITE);
+        display.setTextSize(1);     
+        display.setTextColor(BLACK);  
+        display.setCursor(117, 4);  
+        display.print("MA");
+        display.display(); 
+    }
     changeTempo = false;
 
 
 
   }
-
-/*
-messungPin1 = digitalRead(6);
-
-
-if ((messungPin1 == HIGH) && (messungPin1Alt == LOW)){
-  if (digitalRead(7) == HIGH){
-    encoderWert++;
-    
-    display.fillRect(63,20,127,20, BLACK);
-    display.setCursor(63, 25); 
-    display.setTextColor(WHITE);  
-    display.print(bpm + (encoderWert - encoderWertAlt)); 
-    bpm = bpm+(encoderWert - encoderWertAlt);
-
-    display.display(); 
-    encoderWertAlt = encoderWert;
-  }
-  else {
-    encoderWert--;
-    
-    display.fillRect(63,20,127,20, BLACK);
-    display.setCursor(63, 25); 
-    display.setTextColor(WHITE);  
-    display.print(bpm + (encoderWert - encoderWertAlt)); 
-    bpm = bpm+(encoderWert - encoderWertAlt);
-    display.display(); 
-
-    encoderWertAlt = encoderWert;  
-  }
-  Serial.println (encoderWert);
-}
-messungPin1Alt = messungPin1;
-*/
-
 
 
 if (startStopInterrupt == true && start == true){
@@ -639,7 +722,7 @@ Wire.endTransmission();
 delay(1000);
 
 */
-    //usbMIDI.read();
+    usbMIDI.read();
   // Hier ist die Zeitschleife
   if (millis()-lastTime >= tempo  && start == true && fuck == true)
   {
@@ -686,8 +769,8 @@ void sendMidiNotes(byte spur, byte schritt){
   for (int i=0; i<=7; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-   //usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-   //usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+   usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+   usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
    //Serial.println(millis());
    
     }
@@ -910,8 +993,6 @@ void debugMessage (int stelle, int variable1, int variable2){
 
 void beatClock(byte realtimebyte) {
 
-  
-
   if(realtimebyte == START) { zaehler = 0; zeitAlt = millis(); }
   if(realtimebyte == CONTINUE) { zeitAlt = millis(); }
   if(realtimebyte == STOP) { digitalWrite(13, LOW); }
@@ -932,8 +1013,6 @@ void beatClock(byte realtimebyte) {
     bpm = round((60000 / (millis() - zeitAlt)));
 
     changeTempo = true;
-
-
 
     Serial.print(bpm);
     Serial.println(" BPM");
