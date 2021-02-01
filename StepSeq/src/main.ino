@@ -117,19 +117,18 @@ boolean seqSpeicher[8][16] =   {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 
 
 
-
-
-boolean pretset1[8][16] =      {{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
+/* PresetPattern */
+boolean seqSpeicherP1[8][16] = {{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1} 
                                 };
 
-boolean pretset2[8][16] =      {{0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+boolean seqSpeicherP2[8][16] = {{0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -139,7 +138,7 @@ boolean pretset2[8][16] =      {{0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
                                 };
 
-boolean pretset3[8][16] =      {{0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
+boolean seqSpeicherP3[8][16] = {{0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -149,7 +148,7 @@ boolean pretset3[8][16] =      {{0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0} 
                                 };
 
-boolean pretset4[8][16] =      {{0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+boolean seqSpeicherP4[8][16] = {{0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -159,7 +158,7 @@ boolean pretset4[8][16] =      {{0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0} 
                                 };
 
-boolean pretset5[8][16] =      {{0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
+boolean seqSpeicherP5[8][16] = {{0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
@@ -169,7 +168,7 @@ boolean pretset5[8][16] =      {{0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0} 
                                 };
 
-boolean pretset6[8][16] =      {{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
+boolean seqSpeicherP6[8][16] = {{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
@@ -179,7 +178,7 @@ boolean pretset6[8][16] =      {{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0} 
                                 };
 
-boolean pretset7[8][16] =      {{0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
+boolean seqSpeicherP7[8][16] = {{0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
@@ -189,7 +188,7 @@ boolean pretset7[8][16] =      {{0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0} 
                                 };
 
-boolean pretset8[8][16] =      {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+boolean seqSpeicherP8[8][16] = {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -198,11 +197,6 @@ boolean pretset8[8][16] =      {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
                                 };
-
-
-
-
-
 
 
 
@@ -220,10 +214,10 @@ String spurNamen [8] = { "KICK",
                          "SNARE",
                          "HIHAT",
                          "CRASH",
-                         "SHAKER",
+                         "SHAKR",
                          "TOM1",
                          "TOM2",
-                         "TAMBURIN"};
+                         "TAMBUR"};
 
 
 
@@ -399,32 +393,31 @@ void setup() {
     
   display.clearDisplay();
 
-  display.fillRect(0,0,128,18,WHITE);
+  display.fillRect(0,0,128,17,WHITE);
   display.setTextSize(2);     
   display.setTextColor(BLACK);  
   display.setCursor(1, 1);  
-  display.print("SEQUENCER");
+  display.print("DRUM SEQ.");
 
 
   display.fillRect(110,0,128,16,BLACK);
   display.fillRect(112,0,126,15,WHITE);
 
-
+  display.drawLine(0,42,128,42, WHITE);
+  display.drawLine(42,20,42,64, WHITE);
+  display.drawLine(86,20,86,64, WHITE);
 
   display.setCursor(1, 25); 
   display.setTextSize(1); 
   display.setTextColor(WHITE);  
-  display.print("TEMPO:"); 
-
-  display.setCursor(63, 25); 
-  display.setTextColor(WHITE);  
   display.print(bpm); 
 
-  display.setCursor(1, 40); 
+  display.setCursor(49, 25); 
+  display.setTextSize(1); 
   display.setTextColor(WHITE);  
-  display.print("SPUR:"); 
+  display.print("Pat. "); 
 
-  display.setCursor(63, 40); 
+  display.setCursor(1, 50); 
   display.setTextColor(WHITE);  
   display.print(spurNamen[seqSpurAktiv]); 
 
@@ -522,6 +515,8 @@ bool fuck = true;
 void loop() {
 
 
+
+
  rotating = true;  // reset the debouncer
 
   if (lastReportedPos != encoderPos || changeTempo == true)
@@ -529,12 +524,11 @@ void loop() {
     Serial.print("Index:");
     Serial.println(encoderPos, DEC);
 
-    display.fillRect(63,20,127,20, BLACK);
-    display.setCursor(63, 25); 
+    display.fillRect(0,20,40,20, BLACK);
+
+    display.setCursor(1, 25); 
+    display.setTextSize(1); 
     display.setTextColor(WHITE);  
-
-
-    
      
     bpm = bpm+(encoderPos-lastReportedPos);
     display.print(bpm); 
@@ -590,22 +584,53 @@ if (changeTrack == true){
 
 
 if (changeTrack == true && lastButtonPressed != 0){
+  if (lastButtonPressed <= 8){
 
-  if (lastButtonPressed != 0){
-    seqSpurAktiv = lastButtonPressed-1;
-  }
-    display.fillRect(63,40,127,40, BLACK);
-    display.setCursor(63, 40); 
-    display.setTextColor(WHITE);  
-    display.print(spurNamen[seqSpurAktiv]); 
-    display.display(); 
+  seqSpurAktiv = lastButtonPressed-1;
+
+
+  display.fillRect(0,44,40,64, BLACK);
+  display.setCursor(1, 50);  
+  display.setTextColor(WHITE);  
+  display.print(spurNamen[seqSpurAktiv]); 
+  display.display(); 
 
   lastTimeTrack = millis();
   changeTrack = false;
 
   sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
   digitalWrite(39, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
+  lastButtonPressed = 0;
+  }
+  
+  else if (lastButtonPressed > 8 && lastButtonPressed <= 16){
+
+  loadPreset (lastButtonPressed);  
+
+  int patternDisplay = lastButtonPressed -8;
+
+  display.fillRect(44,22,40,20, BLACK);
+  
+  display.setCursor(49, 25); 
+  display.setTextSize(1); 
+  display.setTextColor(WHITE);  
+  display.print("Pat."); 
+  display.setCursor(74, 25); 
+  display.print(patternDisplay);
+  display.display();
+
+
+
+  lastTimeTrack = millis();
+  changeTrack = false;
+
+  sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+  digitalWrite(39, LOW);  
+  lastButtonPressed = 0;
+  }
 }
+
+
 
   intCapReg = myMCP.getIntCap(B);  // Register muss hier ausgelesen werden, dadurch wird der Interrupt abgelöscht
   intCapReg = myMCP2.getIntCap(B);
@@ -778,6 +803,77 @@ void sendMidiNotes(byte spur, byte schritt){
 }
 
 
+void loadPreset (int whichPreset){
+  switch (whichPreset)
+    {
+    case 9:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP1[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 1");
+      break;
+    case 10:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP2[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 2");
+      break;
+    case 11:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP3[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 3");
+      break;
+    case 12:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP4[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 4");
+      break;
+    case 13:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP5[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 5");
+      break;
+    case 14:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP6[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 6");
+      break;
+    case 15:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP7[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 7");
+      break;
+    case 16:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          seqSpeicher[i][j] = seqSpeicherP8[i][j];
+        }   
+      }
+      Serial.println(" SPEICHER 8");
+      break;
+    default:
+      break;
+    }
+}
 
 
 void doEncoderA()
@@ -804,19 +900,6 @@ void doEncoderB(){
   }
 }
 
-/*
-// SCHROTTT
-void encoderInterrupt(){
-  if ( millis()-lastTimeTrack >= 100){
-  if (digitalRead(7) == HIGH){
-    encoderWert++;
-  }
-  else {
-    encoderWert--;
-  }
-  lastTimeTrack = millis();
-  
-}}*/
 
 
 // Interrupt, welcher die aktuelle Spur ändert
@@ -851,7 +934,10 @@ void buttonsAbfragen(byte woGedrueckt) {
    Wire.endTransmission();
 
   // Serial.println(statusICR);
-   lastButtonPressed = statusICR;
+  lastButtonPressed = statusICR;
+
+   Serial.print("lastButtonPressed Stelle 1: ");
+   Serial.println(lastButtonPressed);
 
    if (statusICR != 0) { seqNoteSchreiben(statusICR, mcpWahl); }
 }
@@ -859,7 +945,6 @@ void buttonsAbfragen(byte woGedrueckt) {
 // Schreibt Werte in den SeqSpeicher
 void seqNoteSchreiben(byte noteInBits, int mcpNummer){
   byte x = 0;
-
 
   if (mcpNummer == 0x21){
     mcpNummer = 8;
@@ -873,7 +958,12 @@ void seqNoteSchreiben(byte noteInBits, int mcpNummer){
     x++;
   }
 
-  lastButtonPressed = x+1;
+  lastButtonPressed = x+1 + mcpNummer;
+
+  
+  
+  Serial.print("lastButtonPressed: ");
+  Serial.println(lastButtonPressed);
   // HIER SCHREIBEN
   if(changeTrack == false)
   
