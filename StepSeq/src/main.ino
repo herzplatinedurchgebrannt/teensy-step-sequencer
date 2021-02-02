@@ -28,10 +28,6 @@
 #define GPPUB 0x0D
 
 
-
-
-
-
 #define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
 
 int interruptPin = 26;
@@ -53,7 +49,17 @@ int interruptPin2 = 28;
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-enum menuAnwahl {TEMPO, SPUR, MIDI_NOTE, MIDI_VELOCITY};
+enum menuAnwahl {SPUR, TEMPO, SAVE, PATTERN, MIDI_NOTE, MIDI_VELOCITY};
+enum patternAuswahl {PATTERN1, PATTERN2, PATTERN3, PATTERN4, PATTERN5, PATTERN6, PATTERN7, PATTERN8};
+
+
+int patternDisplay = 0;
+int menuAktuell = 1;
+
+menuAnwahl menuPosition = SPUR;
+unsigned long lastTimeInvertMenu = 0;
+
+bool displayValueChange = false;
 
 
 /************  Encoder   **************/
@@ -62,6 +68,8 @@ int messungPin1Alt = LOW;
 
 volatile int encoderWert = 0;
 int encoderWertAlt = 0;
+volatile bool switchPressed = false;
+unsigned long lastTimeSwitchPressed = 0;
 
 
 volatile int encoderWertTest = 0;
@@ -100,11 +108,12 @@ unsigned long lastTimeStartStop = 0;
 
 
 
+
 volatile byte buttonGedrueckt = 0;
 unsigned long lastInterrupt = 0;
 
 
-/************  MIDI OUT   **************/
+/* Noten Speicher und Pattern*/
 boolean seqSpeicher[8][16] =   {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                                 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -118,14 +127,14 @@ boolean seqSpeicher[8][16] =   {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 
 
 /* PresetPattern */
-boolean seqSpeicherP1[8][16] = {{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+boolean seqSpeicherP1[8][16] = {{1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0},
+                                {0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0},
                                 {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-                                {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1} 
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                                {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} 
                                 };
 
 boolean seqSpeicherP2[8][16] = {{0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -200,6 +209,97 @@ boolean seqSpeicherP8[8][16] = {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 
 
 
+/* Velocity Speicher + Pattern1-8 */
+int velocitySpeicher[8][16] =  {{127,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50},
+                                {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50},
+                                {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50},
+                                {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50},
+                                {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50},
+                                {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50},
+                                {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50},
+                                {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50} 
+                               };
+
+int velocityP1[8][16] = {{120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120},
+                         {120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120},
+                         {120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120},
+                         {120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120},
+                         {120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120},
+                         {120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120},
+                         {120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120},
+                         {120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120} 
+                        };
+
+int velocityP2[8][16] = {{120,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {115,115,115,115,115,115,115,115,115,115,115,115,115,115,115,115},
+                         {115,115,115,115,115,115,115,115,115,115,115,115,115,115,115,115},
+                         {115,119,119,119,119,119,119,119,119,119,119,119,119,119,119,119},
+                         {119,119,119,119,119,119,119,119,119,119,119,119,117,117,117,117},
+                         {117,117,117,117,117,117,117,117,117,117,117,117,117,117,117,117},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110} 
+                        };
+
+int velocityP3[8][16] = {{110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,110},
+                         {110,110,110,110,110,110,110,110,110,110,110,110,110,110,110,127} 
+                        };
+
+int velocityP4[8][16] = {{127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127} 
+                        };
+
+int velocityP5[8][16] = {{127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127} 
+                        };
+
+int velocityP6[8][16] = {{127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127} 
+                        };
+
+int velocityP7[8][16] = {{127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127} 
+                        };
+
+int velocityP8[8][16] = {{127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127},
+                         {127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127} 
+                        };
+
 int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {38, 127, 1}, //Snare
                           {42, 127, 1}, //Hat
@@ -219,6 +319,9 @@ String spurNamen [8] = { "KICK",
                          "TOM2",
                          "TAMBUR"};
 
+int midiVelocityDisplay = 127;
+int midiNoteDisplay = midiNotes[0][0];
+int midiChannelDisplay = midiNotes[0][2];
 
 
 byte seqSpurAktiv = 0;
@@ -254,11 +357,12 @@ boolean B_set = false;
 
 
 
+
+/*------------------------SETUP-----------------------*/
+
 void setup() {
 
   
-
-
   Wire.begin();
   Serial.begin(31250); 
   
@@ -399,29 +503,17 @@ void setup() {
   display.setCursor(1, 1);  
   display.print("DRUM SEQ.");
 
-
   display.fillRect(110,0,128,16,BLACK);
   display.fillRect(112,0,126,15,WHITE);
+
 
   display.drawLine(0,42,128,42, WHITE);
   display.drawLine(42,20,42,64, WHITE);
   display.drawLine(86,20,86,64, WHITE);
 
-  display.setCursor(1, 25); 
-  display.setTextSize(1); 
-  display.setTextColor(WHITE);  
-  display.print(bpm); 
-
-  display.setCursor(49, 25); 
-  display.setTextSize(1); 
-  display.setTextColor(WHITE);  
-  display.print("Pat. "); 
-
-  display.setCursor(1, 50); 
-  display.setTextColor(WHITE);  
-  display.print(spurNamen[seqSpurAktiv]); 
-
   display.display(); 
+  markMenuInt(0);
+  markMenuInt(menuAktuell);
 
   delay(500);
 
@@ -495,19 +587,20 @@ void setup() {
  
 
 
-
+  pinMode(4, INPUT_PULLUP);
   pinMode(encoderPinA, INPUT);
   pinMode(encoderPinB, INPUT); 
 
   digitalWrite(encoderPinA, HIGH);  // turn on pullup resistors
   digitalWrite(encoderPinB, HIGH);  // turn on pullup resistors
 
-  attachInterrupt(6, doEncoderA, CHANGE); // encoder pin on interrupt 0 (pin 2)
-  attachInterrupt(7, doEncoderB, CHANGE); // encoder pin on interrupt 1 (pin 3)
+  attachInterrupt(4, encoderSwitch, FALLING);
+  attachInterrupt(6, doEncoderA, CHANGE); 
+  attachInterrupt(7, doEncoderB, CHANGE); 
 
 } 
 bool fuck = true;
-
+bool invertMenu = true;
 
 
 
@@ -515,32 +608,100 @@ bool fuck = true;
 void loop() {
 
 
+// Display aktualisieren
+if (switchPressed == true )
+{  
+  if (displayValueChange == true) {markMenuInt(menuAktuell);displayValueChange=false;} 
 
-
- rotating = true;  // reset the debouncer
-
-  if (lastReportedPos != encoderPos || changeTempo == true)
+  if (encoderPos != lastReportedPos){
+    if (encoderPos-lastReportedPos <0)
+    {
+    menuAktuell = menuAktuell-1;
+    if (menuAktuell <= 0){menuAktuell = 6;}
+    }
+    else 
+    {
+    menuAktuell = menuAktuell+1;
+    if (menuAktuell > 6){menuAktuell = 1;}
+    } 
+    markMenuInt(0);
+    markMenuInt(menuAktuell);
+  }
+}  
+// Display aktualisieren, Button nicht gedrückt, Parameter lassen sich ändern
+else if ((switchPressed == false  && displayValueChange == true) || (switchPressed == false  && millis() - lastTimeInvertMenu >= 1000))
+{
+  if (invertMenu == true)
   {
-    Serial.print("Index:");
-    Serial.println(encoderPos, DEC);
+    // unmark Menu BÖSE
+    //markMenuInt(0);
+  }
+  else
+  { // BÖSE
+    markMenuInt(menuAktuell);
+  }
+  // Display invertieren nach 500ms
+  if (millis() - lastTimeInvertMenu >= 500)
+  {
+    invertMenu = !invertMenu;
+    lastTimeInvertMenu = millis();
+  }
+  displayValueChange = false;
+}
 
-    display.fillRect(0,20,40,20, BLACK);
 
-    display.setCursor(1, 25); 
-    display.setTextSize(1); 
-    display.setTextColor(WHITE);  
-     
-    bpm = bpm+(encoderPos-lastReportedPos);
-    display.print(bpm); 
-
-    display.display(); 
-
-    tempo = (1000.000/(bpm/60*noteLength))-offset;
-
-
-    lastReportedPos = encoderPos;
-
+if (lastReportedPos != encoderPos && switchPressed == false)
+{
+  if (encoderPos-lastReportedPos <0){
     
+      switch (menuAktuell){
+        case 5:
+          midiNoteDisplay--;
+          if (midiNoteDisplay < 0){midiNoteDisplay = 0;}
+          midiNotes[seqSpurAktiv][0]=midiNoteDisplay;
+          break;
+        case 6:
+          midiVelocityDisplay--;
+          if (midiVelocityDisplay < 0){midiVelocityDisplay = 127;}
+          break;
+
+      }   
+  }
+  else {
+
+      switch (menuAktuell){
+        case 5:
+          midiNoteDisplay++;
+          if (midiNoteDisplay > 127){midiNoteDisplay = 127;}
+          midiNotes[seqSpurAktiv][0]=midiNoteDisplay;
+
+          break;
+        case 6:
+          midiVelocityDisplay++;
+          if (midiVelocityDisplay > 127) {midiVelocityDisplay = 0;}
+          break;
+      }
+  }
+}
+
+
+
+
+rotating = true;  // reset the debouncer
+
+if (lastReportedPos != encoderPos || changeTempo == true)
+  {
+    if (switchPressed == false && menuAktuell == 2){
+     // Serial.print("Index:");
+      //Serial.println(encoderPos, DEC);
+
+      bpm = bpm+(encoderPos-lastReportedPos);
+      if (bpm < 60){bpm = 60;}
+      else if (bpm > 240){bpm = 240;}
+      tempo = (1000.000/(bpm/60*noteLength))-offset;
+    }
+ 
+    lastReportedPos = encoderPos;
 
     if (changeTempo == true){
         display.fillRect(112,0,126,15,WHITE);
@@ -558,126 +719,69 @@ void loop() {
         display.print("MA");
         display.display(); 
     }
+    displayValueChange = true;
+
     changeTempo = false;
-
-
-
   }
 
 
-if (startStopInterrupt == true && start == true){
+if (startStopInterrupt == true && start == true)
+{
   start = false;
   startStopInterrupt = false;
   seqStepAktuell = 0;
 }
-else if (startStopInterrupt == true && start == false){
+else if (startStopInterrupt == true && start == false)
+{
   start = true;
   startStopInterrupt = false;
 }
 
 
 
-
+// LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
 if (changeTrack == true){
   digitalWrite(39, HIGH);
 }
 
+// ChangeTrack Button2 ist aktiv und ein Auswahlbutton wurde gedrückt. B1-8=> Spurwechselm B9-16=> Patternwechsel
+if (changeTrack == true && lastButtonPressed != 0)
+{
+  if (lastButtonPressed <= 8)
+  {
+    seqSpurAktiv = lastButtonPressed-1;
+    midiNoteDisplay = midiNotes[seqSpurAktiv][0];
 
-if (changeTrack == true && lastButtonPressed != 0){
-  if (lastButtonPressed <= 8){
+    displayValueChange = true;
 
-  seqSpurAktiv = lastButtonPressed-1;
+    lastTimeTrack = millis();
+    changeTrack = false;
 
-
-  display.fillRect(0,44,40,64, BLACK);
-  display.setCursor(1, 50);  
-  display.setTextColor(WHITE);  
-  display.print(spurNamen[seqSpurAktiv]); 
-  display.display(); 
-
-  lastTimeTrack = millis();
-  changeTrack = false;
-
-  sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-  digitalWrite(39, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
-  lastButtonPressed = 0;
+    sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+    digitalWrite(39, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
+    lastButtonPressed = 0;
   }
   
-  else if (lastButtonPressed > 8 && lastButtonPressed <= 16){
+  else if (lastButtonPressed > 8 && lastButtonPressed <= 16)
+  {
+    loadPreset (lastButtonPressed);  
 
-  loadPreset (lastButtonPressed);  
+    patternDisplay = lastButtonPressed -8;
 
-  int patternDisplay = lastButtonPressed -8;
+    displayValueChange = true;
 
-  display.fillRect(44,22,40,20, BLACK);
-  
-  display.setCursor(49, 25); 
-  display.setTextSize(1); 
-  display.setTextColor(WHITE);  
-  display.print("Pat."); 
-  display.setCursor(74, 25); 
-  display.print(patternDisplay);
-  display.display();
+    lastTimeTrack = millis();
+    changeTrack = false;
 
-
-
-  lastTimeTrack = millis();
-  changeTrack = false;
-
-  sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-  digitalWrite(39, LOW);  
-  lastButtonPressed = 0;
+    sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+    digitalWrite(39, LOW);  
+    lastButtonPressed = 0;
   }
 }
+intCapReg = myMCP.getIntCap(B);  // Register muss hier ausgelesen werden, dadurch wird der Interrupt abgelöscht
+intCapReg = myMCP2.getIntCap(B);
 
 
-
-  intCapReg = myMCP.getIntCap(B);  // Register muss hier ausgelesen werden, dadurch wird der Interrupt abgelöscht
-  intCapReg = myMCP2.getIntCap(B);
-  
-  
-  /*
-  if(event){
-
-    Serial.println("lalalalalalala");
-    delay(200);
-    
-    byte intFlagReg, eventPin; 
-    byte test, test2;
-
-    intFlagReg = myMCP.getIntFlag(B);
-    eventPin = log(intFlagReg)/log(2);
-    
-    
-    test = log(intFlagReg);
-    test2 = log(2);
-    Serial.println("hallo!");
-    Serial.println(test);
-    Serial.println(test2);
-    
-    
-    
-    intCapReg = myMCP.getIntCap(B);
-    Serial.println("Interrupt!");
-    Serial.print("Interrupt Flag Register: ");
-    Serial.println(intFlagReg,BIN); 
-    Serial.print("Interrupt Capture Register: ");
-    Serial.println(intCapReg,BIN); 
-    Serial.print("Pin No.");
-    Serial.print(eventPin);
-    Serial.print(" went ");
-    if((intFlagReg&intCapReg) == 0){
-      Serial.println("LOW");
-    }
-    else{
-      Serial.println("HIGH");
-    }
-    myMCP.setPort(intFlagReg, A);
-    delay(1000);
-    
-    event = false;
-  }
-  */
   /*
    // read the inputs of bank B
   Wire.beginTransmission(0x20);
@@ -730,9 +834,6 @@ Wire.write(0x13); // address port B
 Wire.write(B11111111 );  // value to send
 Wire.endTransmission();
 
-
-delay(1000);
-
 Wire.beginTransmission(0x20);
 Wire.write(0x12); // address port A
 Wire.write(B00000000);  // value to send
@@ -743,17 +844,11 @@ Wire.write(0x13); // address port B
 Wire.write(B00000000 );  // value to send
 Wire.endTransmission();
 
-
-delay(1000);
-
 */
     usbMIDI.read();
   // Hier ist die Zeitschleife
   if (millis()-lastTime >= tempo  && start == true && fuck == true)
-  {
-
-    
-    
+  {    
     // LEDs von der aktuell angewählten Spur werden angezeigt
     seqTrackToLED(seqSpurAktiv);
 
@@ -769,12 +864,8 @@ delay(1000);
 
     // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
     lastTime = millis();
-
-
   }
 
-
-  
 
   if (buttonGedrueckt != 0 && sendOkay == true)
   {
@@ -788,14 +879,136 @@ delay(1000);
   }
 }
 
+
+/*---------------------------ENDE LOOP---------------------------*/
+
+
+void markMenuInt(int test){
+
+    switch (test) {
+      case 0:
+          // unmark everything
+          display.fillRect(1,20,39,20, BLACK);
+          display.setCursor(2, 25); 
+          display.setTextSize(1); 
+          display.setTextColor(WHITE);  
+          display.print(spurNamen[seqSpurAktiv]); 
+
+          display.fillRect(45,20,39,20, BLACK);
+          display.setCursor(49, 25); 
+          display.setTextSize(1); 
+          display.setTextColor(WHITE);  
+          display.print(bpm); 
+
+          display.fillRect(89,20,86,20, BLACK);
+          display.setCursor(90, 25); 
+          display.setTextSize(1); 
+          display.setTextColor(WHITE);  
+          display.print(midiChannelDisplay); 
+                  
+
+
+          display.fillRect(1,45,39,62, BLACK);
+          display.setCursor(2, 50);  
+          display.setTextColor(WHITE);  
+          display.print("Pat."); 
+          display.setCursor(27, 50); 
+          display.print(patternDisplay);
+
+          display.fillRect(45,45,39,62, BLACK);
+          display.setCursor(45, 50);  
+          display.setTextColor(WHITE);  
+          display.print(midiNoteDisplay);
+
+          display.fillRect(89,45,86,62, BLACK);
+          display.setCursor(90, 50);  
+          display.setTextColor(WHITE);  
+          display.print(midiVelocityDisplay); 
+
+          display.display(); 
+        break;
+      case 1:
+          display.fillRect(1,20,39,20, WHITE);
+          display.setCursor(2, 25); 
+          display.setTextSize(1); 
+          display.setTextColor(BLACK);  
+          display.print(spurNamen[seqSpurAktiv]); 
+          display.display(); 
+        break;
+      case 2:
+          display.fillRect(45,20,39,20, WHITE);
+          display.setCursor(49, 25); 
+          display.setTextSize(1); 
+          display.setTextColor(BLACK);  
+          display.print(bpm); 
+          display.display(); 
+        break;
+      case 3:
+          display.fillRect(89,20,86,20, WHITE);
+          display.setCursor(90, 25); 
+          display.setTextSize(1); 
+          display.setTextColor(BLACK);  
+          display.print(midiChannelDisplay); 
+          display.display(); 
+        break;
+      case 4:
+          display.fillRect(1,45,39,62, WHITE);
+          display.setCursor(2, 50);  
+          display.setTextColor(BLACK);  
+          display.print("Pat."); 
+          display.setCursor(27, 50); 
+          display.print(patternDisplay);
+          display.display(); 
+        break;
+      case 5:
+          display.fillRect(45,45,39,62, WHITE);
+          display.setCursor(45, 50);  
+          display.setTextColor(BLACK);  
+          display.print(midiNoteDisplay); 
+          display.display(); 
+        break;
+      case 6:
+          display.fillRect(89,45,86,62, WHITE);
+          display.setCursor(90, 50);  
+          display.setTextColor(BLACK);  
+          display.print(midiVelocityDisplay);  
+          display.display(); 
+        break;
+    }
+}
+
+
+void encoderSwitch(){
+  if (millis() - lastTimeSwitchPressed > 300 && switchPressed == false){
+    switchPressed = true;
+    digitalWrite(13, HIGH);
+    lastTimeSwitchPressed = millis();
+  }
+  else if (millis() - lastTimeSwitchPressed > 300 && switchPressed == true){
+    switchPressed = false;
+    digitalWrite(13, LOW);
+    lastTimeSwitchPressed = millis();
+  }
+  
+
+}
+
+
+
+
+
+
+
+
+
 // sendet MIDI Noten aus dem aktuellen S
 void sendMidiNotes(byte spur, byte schritt){
   
   for (int i=0; i<=7; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-   usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-   usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+   usbMIDI.sendNoteOn(midiNotes[i][0], velocitySpeicher[i][0], 1);
+   usbMIDI.sendNoteOff(midiNotes[i][0], velocitySpeicher[i][0], 1);
    //Serial.println(millis());
    
     }
@@ -810,6 +1023,7 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP1[i][j];
+          velocitySpeicher[i][j] = velocityP1[i][j];
         }   
       }
       Serial.println(" SPEICHER 1");
@@ -818,6 +1032,7 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP2[i][j];
+          velocitySpeicher[i][j] = velocityP2[i][j];
         }   
       }
       Serial.println(" SPEICHER 2");
@@ -826,6 +1041,7 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP3[i][j];
+          velocitySpeicher[i][j] = velocityP3[i][j];
         }   
       }
       Serial.println(" SPEICHER 3");
@@ -834,6 +1050,7 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP4[i][j];
+          velocitySpeicher[i][j] = velocityP4[i][j];
         }   
       }
       Serial.println(" SPEICHER 4");
@@ -842,6 +1059,8 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP5[i][j];
+          velocitySpeicher[i][j] = velocityP5[i][j];
+          
         }   
       }
       Serial.println(" SPEICHER 5");
@@ -850,6 +1069,7 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP6[i][j];
+          velocitySpeicher[i][j] = velocityP6[i][j];
         }   
       }
       Serial.println(" SPEICHER 6");
@@ -858,6 +1078,7 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP7[i][j];
+          velocitySpeicher[i][j] = velocityP7[i][j];
         }   
       }
       Serial.println(" SPEICHER 7");
@@ -866,6 +1087,7 @@ void loadPreset (int whichPreset){
       for (int i=0; i<8; i++){
         for (int j=0; j<16; j++){
           seqSpeicher[i][j] = seqSpeicherP8[i][j];
+          velocitySpeicher[i][j] = velocityP8[i][j];
         }   
       }
       Serial.println(" SPEICHER 8");
@@ -1101,6 +1323,8 @@ void beatClock(byte realtimebyte) {
 
   if (zaehler == 24 || zaehler == 48 || zaehler == 72 || zaehler == 96 ) {
     bpm = round((60000 / (millis() - zeitAlt)));
+
+
 
     changeTempo = true;
 
