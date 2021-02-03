@@ -2,7 +2,7 @@
 #include <Wire.h>
 
 /************  MCP23017   ***************/
-#include <MCP23017.h> 
+// #include <MCP23017.h> 
 
 #define IODIRA 0x00   
 #define IODIRB 0x01   
@@ -28,15 +28,14 @@
 #define GPPUB 0x0D
 
 
-#define MCP_ADDRESS 0x20 // (A2/A1/A0 = LOW) 
+#define MCP_ADDRESS_1 0x20 // (A2/A1/A0 = LOW) 
+#define MCP_ADDRESS_2 0x21
 
 int interruptPin = 26;
-volatile bool event = false;
-byte intCapReg; 
-MCP23017 myMCP(MCP_ADDRESS,27); // 27 = ResetPin
 
 
-MCP23017 myMCP2(0x21,27); // 27 = ResetPin
+//MCP23017 myMCP(MCP_ADDRESS_1,27); // 27 = ResetPin
+//MCP23017 myMCP2(MCP_ADDRESS_2,27); // 27 = ResetPin
 int interruptPin2 = 28;
 
 /************  Display   ***************/
@@ -310,14 +309,14 @@ int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {35, 127, 1}  //Crash
                           };
 
-String spurNamen [8] = { "KICK", 
-                         "SNARE",
-                         "HIHAT",
-                         "CRASH",
-                         "SHAKR",
-                         "TOM1",
-                         "TOM2",
-                         "TAMBUR"};
+String spurNamen [8] = { "Kick", 
+                         "Snare",
+                         "Hihat",
+                         "Crash",
+                         "Shakr",
+                         "Tom 1",
+                         "Tom 2",
+                         "Tambu"};
 
 int midiVelocityDisplay = 127;
 int midiNoteDisplay = midiNotes[0][0];
@@ -356,8 +355,6 @@ boolean B_set = false;
 
 
 
-
-
 /*------------------------SETUP-----------------------*/
 
 void setup() {
@@ -368,116 +365,40 @@ void setup() {
   
   /************  MCP23017 Setup  *************/
   pinMode(interruptPin, INPUT);
+
   attachInterrupt(digitalPinToInterrupt(interruptPin), buttonInterrupt0, FALLING);
 
+  //myMCP.Init();
 
-
-
-
-
-  myMCP.Init();
-
-
-  Wire.beginTransmission(0x20);
-  Wire.write(IODIRA); // IODIRA register
-  Wire.write(B00000000); // IO Direction Register, 1=Input, 0=Output, LEDs als Output
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(GPIOA); // GPIOA register
-  Wire.write(B11111111); // LEDs anschalten
-  Wire.endTransmission();
-
- // myMCP.setPortMode(B11111111, A);
- // myMCP.setPort(B11111111, A); // kurzer LED Test
+  mcpWrite(MCP_ADDRESS_1, IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
+  mcpWrite(MCP_ADDRESS_1, GPIOA,    B11111111);    // LEDs anschalten
   delay(500); 
-
-
-
-
-  Wire.beginTransmission(0x20);
-  Wire.write(GPIOA); // GPIOA register
-  Wire.write(B00000000); // LEDs ausschalten
-  Wire.endTransmission();
-
-  //myMCP.setAllPins(A, OFF);
+  mcpWrite(MCP_ADDRESS_1, GPIOA,    B00000000);    // LEDs ausschalten
   delay(500);
-
-
-
-
-  Wire.beginTransmission(0x20);
-  Wire.write(IOCONA); // IOCONA register
-  Wire.write(B00000000); // set InterruptPinPol Interrupt bei LOW-Signal
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(IOCONB); // IOCONB register
-  Wire.write(B00000000); // set InterruptPinPol Interrupt bei LOW-Signal
-  Wire.endTransmission();
-
- // myMCP.setInterruptPinPol(LOW);
-
+  mcpWrite(MCP_ADDRESS_1, IOCONA,   B00000000);   // set InterruptPinPol Interrupt bei LOW-Signal
+  mcpWrite(MCP_ADDRESS_1, IOCONB,   B00000000);
   delay(10);
-
-
-
-
-
-  Wire.beginTransmission(0x20);
-  Wire.write(IODIRB); // IODIRB Register
-  Wire.write(B11111111); // IO Direction Register: 1=Input, 0=Output, Buttons als Input
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(GPINTENB); // GPINTENB Register
-  Wire.write(B11111111); // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(INTCONB); // INTCONB Register
-  Wire.write(B11111111); // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(DEFVALB); // DEFVALB Register
-  Wire.write(B11111111); // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
-  Wire.endTransmission();
-
-
-  //myMCP.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
-
-  Wire.beginTransmission(0x20);
-  Wire.write(GPPUB); // GPPUB Register
-  Wire.write(B11111111); // Pull-up Widerstände für Buttons aktivieren
-  Wire.endTransmission();
-
-  //myMCP.setPortPullUp(B11111111, B);
-  
-  
-  
-  
-  event=false;
-
-
-
-
-
-
-
+  mcpWrite(MCP_ADDRESS_1, IODIRB,   B11111111);   // IO Direction Register: 1=Input, 0=Output, Buttons als Input
+  mcpWrite(MCP_ADDRESS_1, GPINTENB, B11111111);   // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
+  mcpWrite(MCP_ADDRESS_1, INTCONB,  B11111111);   // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
+  mcpWrite(MCP_ADDRESS_1, DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
+  mcpWrite(MCP_ADDRESS_1, GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
 
   attachInterrupt(digitalPinToInterrupt(interruptPin2), buttonInterrupt1, FALLING);
-  myMCP2.Init();
-  myMCP2.setPortMode(B11111111, A);
-  myMCP2.setPort(B11111111, A); // kurzer LED Test
+  mcpWrite(MCP_ADDRESS_2, IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
+  mcpWrite(MCP_ADDRESS_2, GPIOA,    B11111111);    // LEDs anschalten
   delay(500); 
-  myMCP2.setAllPins(A, OFF);
+  mcpWrite(MCP_ADDRESS_2, GPIOA,    B00000000);    // LEDs ausschalten
   delay(500);
-  myMCP2.setInterruptPinPol(LOW);
+  mcpWrite(MCP_ADDRESS_2, IOCONA,   B00000000);   // set InterruptPinPol Interrupt bei LOW-Signal
+  mcpWrite(MCP_ADDRESS_2, IOCONB,   B00000000);
   delay(10);
-  myMCP2.setInterruptOnDefValDevPort(B11111111, B, B11111111); // IntPins, Port, DEFVAL
-  myMCP2.setPortPullUp(B11111111, B);
+  mcpWrite(MCP_ADDRESS_2, IODIRB,   B11111111);   // IO Direction Register: 1=Input, 0=Output, Buttons als Input
+  mcpWrite(MCP_ADDRESS_2, GPINTENB, B11111111);   // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
+  mcpWrite(MCP_ADDRESS_2, INTCONB,  B11111111);   // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
+  mcpWrite(MCP_ADDRESS_2, DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
+  mcpWrite(MCP_ADDRESS_2, GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
 
   /************  Button 1 -STOP- Interrupt  *************/
@@ -518,12 +439,6 @@ void setup() {
   delay(500);
 
 
-  /************  Encoder Setup  *************/
- // pinMode(5, INPUT);
- // pinMode(6, INPUT);
- // pinMode(7, INPUT);
-  //attachInterrupt(6, encoderInterrupt, FALLING);
-
 
   /************  Internal LED Setup  *************/
   pinMode(13, OUTPUT);
@@ -533,60 +448,10 @@ void setup() {
   pinMode(26, INPUT);
 
   
-  
 
-  /*
-  // Im Register A befinden sich die LEDs, Register A muss auf OUTPUT gestellt werden
-  // MCP23017 befindet sich auf Adresse 0x20 -> Dezimal 32, Binär B00100000
-  
-  Wire.beginTransmission(0x20);
-  Wire.write(0x00); // IODIRA register
-  Wire.write(0x00); // set all of bank A to outputs
-  Wire.endTransmission();
-
-
-
-  // http://robert-fromm.info/?post=elec_i2c_mcp23017
-  // interne Pullup Widerstände aktivieren. Adresse ist laut Datenblatt S.22 0x06, laut Beispiel 0x0D ?!?!?
-  Wire.beginTransmission(0x20);
-  Wire.write(0x0D);
-  Wire.write(B11111111);
-  Wire.endTransmission();
-
-// Interrupt Stuff 
-
-  Wire.beginTransmission(0x20);
-  Wire.write(0x05);
-  Wire.write(B00000000);
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(0x07);
-  Wire.write(B11111111);
-  Wire.endTransmission();
-
-  
-  Wire.beginTransmission(0x20);
-  Wire.write(0x09);
-  Wire.write(B11111111);
-  Wire.endTransmission();
-  
-
-
-/*
-  // Im Register B befinden sich die Schalter, Standardnmäßig sind die Register auf INPUT gestellt
-  Wire.beginTransmission(B00100000);
-  Wire.write(B00000111); // IODIRB register
-  Wire.endTransmission();
-  */
   
   usbMIDI.setHandleRealTimeSystem(beatClock);
   
-
-
- 
-
-
   pinMode(4, INPUT_PULLUP);
   pinMode(encoderPinA, INPUT);
   pinMode(encoderPinB, INPUT); 
@@ -634,7 +499,7 @@ else if ((switchPressed == false  && displayValueChange == true) || (switchPress
   if (invertMenu == true)
   {
     // unmark Menu BÖSE
-    //markMenuInt(0);
+    markMenuInt(0);
   }
   else
   { // BÖSE
@@ -650,35 +515,62 @@ else if ((switchPressed == false  && displayValueChange == true) || (switchPress
 }
 
 
+// Menu Values ändern
 if (lastReportedPos != encoderPos && switchPressed == false)
 {
-  if (encoderPos-lastReportedPos <0){
-    
-      switch (menuAktuell){
+  if (encoderPos-lastReportedPos <0)
+  {
+      switch (menuAktuell)
+      {
+        case 1:
+          seqSpurAktiv--;
+          if (seqSpurAktiv > 7) { seqSpurAktiv = 0; }
+          midiNoteDisplay = midiNotes[seqSpurAktiv][0];
+          displayValueChange = true;
+          break;
+        case 3:
+          midiChannelDisplay--;
+          if (midiChannelDisplay <= 0) { midiChannelDisplay = 1; }
+          displayValueChange = true;
+          break;
         case 5:
           midiNoteDisplay--;
-          if (midiNoteDisplay < 0){midiNoteDisplay = 0;}
-          midiNotes[seqSpurAktiv][0]=midiNoteDisplay;
+          if (midiNoteDisplay < 0){ midiNoteDisplay = 0; }
+          midiNotes[seqSpurAktiv][0] = midiNoteDisplay;
+          displayValueChange = true;
           break;
         case 6:
           midiVelocityDisplay--;
-          if (midiVelocityDisplay < 0){midiVelocityDisplay = 127;}
+          if (midiVelocityDisplay < 0) { midiVelocityDisplay = 127; }
+          displayValueChange = true;
           break;
-
       }   
   }
-  else {
-
-      switch (menuAktuell){
+  else 
+  {
+      switch (menuAktuell)
+      {   
+        case 1:
+          seqSpurAktiv++;
+          if (seqSpurAktiv > 7) { seqSpurAktiv = 7; }
+          midiNoteDisplay = midiNotes[seqSpurAktiv][0];
+          displayValueChange = true;
+          break;
+        case 3:
+          midiChannelDisplay++;
+          if (midiChannelDisplay > 16) { midiChannelDisplay = 16; }
+          displayValueChange = true;
+          break;
         case 5:
           midiNoteDisplay++;
-          if (midiNoteDisplay > 127){midiNoteDisplay = 127;}
-          midiNotes[seqSpurAktiv][0]=midiNoteDisplay;
-
+          if (midiNoteDisplay > 127) { midiNoteDisplay = 127; }
+          midiNotes[seqSpurAktiv][0] = midiNoteDisplay;
+          displayValueChange = true;
           break;
         case 6:
           midiVelocityDisplay++;
-          if (midiVelocityDisplay > 127) {midiVelocityDisplay = 0;}
+          if (midiVelocityDisplay > 127) { midiVelocityDisplay = 0; }
+          displayValueChange = true;
           break;
       }
   }
@@ -750,6 +642,10 @@ if (changeTrack == true && lastButtonPressed != 0)
   if (lastButtonPressed <= 8)
   {
     seqSpurAktiv = lastButtonPressed-1;
+
+    Serial.println("hei");
+    Serial.println(seqSpurAktiv);
+
     midiNoteDisplay = midiNotes[seqSpurAktiv][0];
 
     displayValueChange = true;
@@ -778,74 +674,17 @@ if (changeTrack == true && lastButtonPressed != 0)
     lastButtonPressed = 0;
   }
 }
-intCapReg = myMCP.getIntCap(B);  // Register muss hier ausgelesen werden, dadurch wird der Interrupt abgelöscht
-intCapReg = myMCP2.getIntCap(B);
 
 
-  /*
-   // read the inputs of bank B
-  Wire.beginTransmission(0x20);
-  Wire.write(0x13);
-  Wire.endTransmission();
-  Wire.requestFrom(0x20, 1);
-  inputs=Wire.read();
-
-  //Serial.println(inputs);
-
-/*
-  if (inputs < 255){
-    digitalWrite(13, LOW);
-  }
-  */
-/*
-  // now send the input data to bank A
-  Wire.beginTransmission(0x20);
-  Wire.write(0x12); // GPIOA
-  Wire.write(inputs);    // bank A
-  Wire.endTransmission();
-  delay(200); // for debounce
-  */
-  /*
-  Wire.requestFrom(0x20, 1); // request one byte of data from MCP20317
-    inputs = Wire.read(); // store the incoming byte into "inputs"
-    if (inputs > 0) {
-        // if a button was pressed
-        Serial.println(inputs, BIN); // display the contents of the GPIOB register in binary
-        delay(200); // for debounce
-    }
-    */
-/*  
-mcp1.begin(0x20); // Init MCP23017 at address 0x20
-    for (byte i=0; i<8; i++) {
-        mcp1.pinMode(i, OUTPUT);
-    }
-
-*/
-/*
 
 
-Wire.beginTransmission(0x20);
-Wire.write(0x12); // address port A
-Wire.write(B11111111);  // value to send
-Wire.endTransmission();
 
-Wire.beginTransmission(0x20);
-Wire.write(0x13); // address port B
-Wire.write(B11111111 );  // value to send
-Wire.endTransmission();
+  mcpRead(MCP_ADDRESS_1,INTCAPB);
+  mcpRead(MCP_ADDRESS_2,INTCAPB);
 
-Wire.beginTransmission(0x20);
-Wire.write(0x12); // address port A
-Wire.write(B00000000);  // value to send
-Wire.endTransmission();
 
-Wire.beginTransmission(0x20);
-Wire.write(0x13); // address port B
-Wire.write(B00000000 );  // value to send
-Wire.endTransmission();
+  usbMIDI.read();
 
-*/
-    usbMIDI.read();
   // Hier ist die Zeitschleife
   if (millis()-lastTime >= tempo  && start == true && fuck == true)
   {    
@@ -888,91 +727,105 @@ void markMenuInt(int test){
     switch (test) {
       case 0:
           // unmark everything
-          display.fillRect(1,20,39,20, BLACK);
-          display.setCursor(2, 25); 
+          display.fillRect(1,29,39,10, BLACK);
           display.setTextSize(1); 
           display.setTextColor(WHITE);  
+          display.setCursor(6, 21); 
+          display.print("TRACK");
+          display.setCursor(2, 30); 
           display.print(spurNamen[seqSpurAktiv]); 
 
-          display.fillRect(45,20,39,20, BLACK);
-          display.setCursor(49, 25); 
+          display.fillRect(45,29,39,10, BLACK);
           display.setTextSize(1); 
           display.setTextColor(WHITE);  
+          display.setCursor(56, 21); 
+          display.print("BPM");
+          display.setCursor(47, 30);
           display.print(bpm); 
 
-          display.fillRect(89,20,86,20, BLACK);
-          display.setCursor(90, 25); 
+          display.fillRect(89,29,86,10, BLACK);
           display.setTextSize(1); 
           display.setTextColor(WHITE);  
+          display.setCursor(95, 21); 
+          display.print("CHAN.");
+          display.setCursor(105, 30); 
           display.print(midiChannelDisplay); 
                   
 
 
-          display.fillRect(1,45,39,62, BLACK);
-          display.setCursor(2, 50);  
+          display.fillRect(1,55,39,52, BLACK);
+          display.setTextSize(1); 
           display.setTextColor(WHITE);  
-          display.print("Pat."); 
-          display.setCursor(27, 50); 
+          display.setCursor(3, 47);  
+          display.print("PRESET"); 
+          display.setCursor(17, 56); 
           display.print(patternDisplay);
 
-          display.fillRect(45,45,39,62, BLACK);
-          display.setCursor(45, 50);  
-          display.setTextColor(WHITE);  
-          display.print(midiNoteDisplay);
+          display.fillRect(45,55,39,52, BLACK);
+          display.setTextSize(1); 
+          display.setTextColor(WHITE); 
+          display.setCursor(52, 47);  
+          display.print("NOTE");
+          display.setCursor(58, 56);  
+          display.print(midiNoteDisplay); 
 
-          display.fillRect(89,45,86,62, BLACK);
-          display.setCursor(90, 50);  
-          display.setTextColor(WHITE);  
-          display.print(midiVelocityDisplay); 
+          display.fillRect(89,55,86,52, BLACK);
+          display.setTextSize(1); 
+          display.setTextColor(WHITE); 
+          display.setCursor(91, 47);  
+          display.print("VELOC.");
+          display.setCursor(100, 56); 
+          display.print(midiVelocityDisplay);  
 
-          display.display(); 
+          // display.display(); 
         break;
       case 1:
-          display.fillRect(1,20,39,20, WHITE);
-          display.setCursor(2, 25); 
+          display.fillRect(1,29,39,10, WHITE);
           display.setTextSize(1); 
           display.setTextColor(BLACK);  
+          display.setCursor(2, 30); 
           display.print(spurNamen[seqSpurAktiv]); 
-          display.display(); 
-        break;
+          //display.display(); 
+        break; 
       case 2:
-          display.fillRect(45,20,39,20, WHITE);
-          display.setCursor(49, 25); 
+          display.fillRect(45,29,39,10, WHITE);
           display.setTextSize(1); 
           display.setTextColor(BLACK);  
+          display.setCursor(47, 30);
           display.print(bpm); 
-          display.display(); 
+          //display.display(); 
         break;
       case 3:
-          display.fillRect(89,20,86,20, WHITE);
-          display.setCursor(90, 25); 
+          display.fillRect(89,29,86,10, WHITE);
           display.setTextSize(1); 
           display.setTextColor(BLACK);  
+          display.setCursor(105, 30); 
           display.print(midiChannelDisplay); 
-          display.display(); 
+          //display.display(); 
         break;
       case 4:
-          display.fillRect(1,45,39,62, WHITE);
-          display.setCursor(2, 50);  
+          display.fillRect(1,55,39,52, WHITE);
+          display.setTextSize(1); 
           display.setTextColor(BLACK);  
-          display.print("Pat."); 
-          display.setCursor(27, 50); 
+          display.setCursor(17, 56); 
           display.print(patternDisplay);
-          display.display(); 
+          //display.display(); 
         break;
       case 5:
-          display.fillRect(45,45,39,62, WHITE);
-          display.setCursor(45, 50);  
-          display.setTextColor(BLACK);  
+          display.fillRect(45,55,39,52, WHITE);
+          display.setTextSize(1); 
+          display.setTextColor(BLACK); 
+          display.setCursor(58, 56);  
           display.print(midiNoteDisplay); 
-          display.display(); 
+          //display.display(); 
         break;
       case 6:
-          display.fillRect(89,45,86,62, WHITE);
-          display.setCursor(90, 50);  
-          display.setTextColor(BLACK);  
+          display.fillRect(89,55,86,52, WHITE);
+          display.setTextSize(1); 
+          display.setTextColor(BLACK); 
+          display.setCursor(100, 56);
           display.print(midiVelocityDisplay);  
-          display.display(); 
+          //display.display(); 
         break;
     }
 }
@@ -989,8 +842,6 @@ void encoderSwitch(){
     digitalWrite(13, LOW);
     lastTimeSwitchPressed = millis();
   }
-  
-
 }
 
 
@@ -1007,8 +858,10 @@ void sendMidiNotes(byte spur, byte schritt){
   for (int i=0; i<=7; i++){
     if (seqSpeicher[i][schritt] == 1) 
     {
-   usbMIDI.sendNoteOn(midiNotes[i][0], velocitySpeicher[i][0], 1);
-   usbMIDI.sendNoteOff(midiNotes[i][0], velocitySpeicher[i][0], 1);
+
+
+   usbMIDI.sendNoteOn(midiNotes[i][0], velocitySpeicher[i][schritt], midiChannelDisplay);
+   usbMIDI.sendNoteOff(midiNotes[i][0], velocitySpeicher[i][schritt], midiChannelDisplay);
    //Serial.println(millis());
    
     }
@@ -1145,8 +998,8 @@ void buttonsAbfragen(byte woGedrueckt) {
    byte statusICR = 0;
    byte mcpWahl = 0;
 
-   if (woGedrueckt == 1 ) {  mcpWahl = 0x20; }
-   if (woGedrueckt == 2 ) {  mcpWahl = 0x21; }
+   if (woGedrueckt == 1 ) {  mcpWahl = MCP_ADDRESS_1; }
+   if (woGedrueckt == 2 ) {  mcpWahl = MCP_ADDRESS_2; }
 
    Wire.beginTransmission(mcpWahl);
    Wire.write(0x0F);
@@ -1202,6 +1055,7 @@ void seqNoteSchreiben(byte noteInBits, int mcpNummer){
     else 
     {
       seqSpeicher[seqSpurAktiv][x + mcpNummer] = 1; 
+      velocitySpeicher[seqSpurAktiv][x + mcpNummer] = midiVelocityDisplay;
       sendOkay = false;
       Serial.println("Note 1");
       lastButtonPressed = 0;
@@ -1256,8 +1110,8 @@ void digitalWriteMCP(byte stepNummer, boolean anOderAus){
 
   
 
-  if ( stepNummer >= 8){ mcpWahl = 0x21; }
-  else {mcpWahl = 0x20;}
+  if ( stepNummer >= 8){ mcpWahl = MCP_ADDRESS_2; }
+  else {mcpWahl = MCP_ADDRESS_1;}
   
 
 
@@ -1333,5 +1187,21 @@ void beatClock(byte realtimebyte) {
     zeitAlt = millis();
   }
 }
+
+
+void mcpRead (byte mcpAdress, byte registerAdress){
+  Wire.beginTransmission(mcpAdress);
+  Wire.write(registerAdress);
+  Wire.endTransmission();
+  Wire.requestFrom(mcpAdress, 1);
+}
+
+void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues){
+  Wire.beginTransmission(mcpAdress);
+  Wire.write(registerAdress); 
+  Wire.write(registerValues); 
+  Wire.endTransmission();
+}
+
 
 
