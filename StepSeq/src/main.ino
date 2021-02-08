@@ -1,5 +1,14 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <U8glib.h>
+
+byte variable = 0;
+byte randNumber;
+
+#define OLED_RESET 13
+U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13);
+// SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
+
 
 /************  MCP23017   ***************/
 #define IODIRA 0x00   
@@ -32,6 +41,8 @@ int interruptPin = 26;
 int interruptPin2 = 28;
 
 /************  Display   ***************/
+
+/*
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_BusIO_Register.h>
 #include <Adafruit_GFX.h>
@@ -40,6 +51,7 @@ int interruptPin2 = 28;
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+*/
 
 enum menuAnwahl {SPUR, TEMPO, SAVE, PATTERN, MIDI_NOTE, MIDI_VELOCITY};
 enum patternAuswahl {PATTERN1, PATTERN2, PATTERN3, PATTERN4, PATTERN5, PATTERN6, PATTERN7, PATTERN8};
@@ -391,6 +403,7 @@ void setup() {
   pinMode(39, OUTPUT); // LED Button 2 -> Trackchange
 
   /************  SSD1306 Setup  *************/
+  /*
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // I2C address = 0x3C
   //delay(250);
     
@@ -410,10 +423,10 @@ void setup() {
 
   display.display(); 
 
-  markMenuInt(0);
-  markMenuInt(menuAktuell);
+  //markMenuInt(0);
+  //markMenuInt(menuAktuell);
 
-  delay(250);
+  delay(250);*/
 
   /************  Internal LED Setup  *************/
   pinMode(13, OUTPUT);
@@ -435,18 +448,67 @@ void setup() {
   //attachInterrupt(4, encoderSwitch, FALLING);
   //attachInterrupt(6, doEncoderA, CHANGE); 
   //attachInterrupt(7, doEncoderB, CHANGE); 
+
+
+
+
+
+ // set SPI backup if required
+ //u8g.setHardwareBackup(u8g_backup_avr_spi);
+
+ // assign default color value
+ if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
+ u8g.setColorIndex(255); // white
+ }
+ else if ( u8g.getMode() == U8G_MODE_GRAY2BIT ) {
+ u8g.setColorIndex(3); // max intensity
+ }
+ else if ( u8g.getMode() == U8G_MODE_BW ) {
+ u8g.setColorIndex(1); // pixel on
+ }
+ else if ( u8g.getMode() == U8G_MODE_HICOLOR ) {
+ u8g.setHiColorByRGB(255,255,255);
+ }
+
 } 
 bool fuck = true;
 bool invertMenu = true;
 
 
+unsigned long lastTimeEncder = 0;
+
 
 
 void loop() {
 
+
+    
+  // picture loop
+  u8g.firstPage(); 
+  do 
+  {
+    draw(); 
+    if (switchPressed == true){
+      markMenu(menuAktuell);
+    }
+    else
+    {
+      if (millis() - lastTimeInvertMenu > 500)
+      {
+        markMenu(menuAktuell);
+      }
+    }
+
+    
+  }
+  while (u8g.nextPage());
+
+  
+  
+
+
+
   messungPin1 = digitalRead(6);
-
-
 
 
   if ((messungPin1 == LOW) && (messungPin1Alt == HIGH)) {
@@ -458,9 +520,11 @@ void loop() {
     }
     else {
       encoderPos--;
-    }Serial.println(encoderPos - lastReportedPos);
+    }Serial.println(encoderPos);
   } 
   messungPin1Alt = messungPin1;
+
+
 
 
   if (millis() - lastTimeSwitchPressed > 300 && digitalRead(5) == LOW)
@@ -473,26 +537,23 @@ void loop() {
 
 
 
-  if (displayValueChange == true) {markMenuInt(menuAktuell); displayValueChange=false; } 
+  if (displayValueChange == true) { displayValueChange = false; } 
 
   // Display aktualisieren
   if (switchPressed == true )
   {  
-    // alte Stelle Display aktualisieren
-
-    if (encoderPos != lastReportedPos){
-      if (encoderPos-lastReportedPos <0)
+    if (encoderPos != lastReportedPos)
+    {
+      if (encoderPos-lastReportedPos < 0)
       {
-      menuAktuell = menuAktuell-1;
-      if (menuAktuell <= 0){menuAktuell = 6;}
+      menuAktuell = menuAktuell - 1;
+      if (menuAktuell <= 0) { menuAktuell = 6; }
       }
       else 
       {
-      menuAktuell = menuAktuell+1;
-      if (menuAktuell > 6){menuAktuell = 1;}
+      menuAktuell = menuAktuell + 1;
+      if (menuAktuell > 6) { menuAktuell = 1; }
       } 
-      markMenuInt(0);
-      markMenuInt(menuAktuell);
     }
     lastReportedPos = encoderPos;
   }  
@@ -507,6 +568,7 @@ void loop() {
     else
     { // BÖSE
       //markMenuInt(menuAktuell);
+        markMenu(menuAktuell);
     }
     // Display invertieren nach 500ms
     if (millis() - lastTimeInvertMenu >= 500)
@@ -530,23 +592,23 @@ void loop() {
             displayValueChange = true;
             break;
           case 2:
+            patternDisplay = patternDisplay + encoderPos - lastReportedPos;
+            if (patternDisplay < 1){ patternDisplay = 1; }
+            else if (patternDisplay > 8){ patternDisplay = 8; }
+            loadPreset(patternDisplay+8);
+            displayValueChange = true;
+            break;
+          case 3:
             bpm = bpm + encoderPos - lastReportedPos;
             if (bpm < 60) { bpm = 60; }
             else if (bpm > 240) { bpm = 240; }
             tempo = (1000.000 / (bpm / 60 * noteLength)) - offset;
             displayValueChange = true;          
             break;
-          case 3:
+          case 4:
             midiChannelDisplay = midiChannelDisplay + encoderPos - lastReportedPos;
             if (midiChannelDisplay <= 0) { midiChannelDisplay = 1; }
             else if (midiChannelDisplay > 16) { midiChannelDisplay = 16; }
-            displayValueChange = true;
-            break;
-          case 4:
-            patternDisplay = patternDisplay + encoderPos - lastReportedPos;
-            if (patternDisplay < 1){ patternDisplay = 1; }
-            else if (patternDisplay > 8){ patternDisplay = 8; }
-            loadPreset(patternDisplay+8);
             displayValueChange = true;
             break;
           case 5:
@@ -608,7 +670,7 @@ void loop() {
       midiNoteDisplay = midiNotes[seqSpurAktiv][0];
 
       //displayValueChange = true;
-      markMenuInt(0);
+      //markMenuInt(0);
 
       lastTimeTrack = millis();
       changeTrack = false;
@@ -624,7 +686,7 @@ void loop() {
       patternDisplay = lastButtonPressed -8;
 
       //displayValueChange = true;
-      markMenuInt(0);
+      //markMenuInt(0);
 
       lastTimeTrack = millis();
       changeTrack = false;
@@ -676,7 +738,7 @@ void loop() {
 
 /*---------------------------ENDE LOOP---------------------------*/
 
-
+/*
 void markMenuInt(int test){
 
     switch (test) {
@@ -781,7 +843,7 @@ void markMenuInt(int test){
           display.display(); 
         break;
     }
-}
+}*/
 
 void encoderSwitch(){
   if (millis() - lastTimeSwitchPressed > 300)
@@ -799,6 +861,7 @@ void sendMidiNotes(byte spur, byte schritt)
     {
     usbMIDI.sendNoteOn(midiNotes[i][0], velocitySpeicher[i][schritt], midiChannelDisplay);
     usbMIDI.sendNoteOff(midiNotes[i][0], velocitySpeicher[i][schritt], midiChannelDisplay);
+
     }
   }
 }
@@ -1077,4 +1140,108 @@ void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues){
 }
 
 
+void draw(void) {
 
+
+
+ //Presetname
+ u8g.setColorIndex(1);
+ u8g.drawBox(0,0,128,16);
+ u8g.setColorIndex(0);
+ u8g.setFont(u8g_font_helvB10);
+ u8g.drawStr( 2, 13, "DRUMSI");
+ //u8g.drawBitmapP( 116, 4, 1, 8, MidiIn);
+ u8g.setColorIndex(1);
+
+
+ //Parameternamen
+ u8g.setFont(u8g_font_profont12);
+ u8g.drawStr( 0, 28, "Trck");
+ u8g.setPrintPos(38, 28); 
+ u8g.print(spurNamen[seqSpurAktiv]);
+
+ u8g.drawStr( 0, 45, "Patt");
+ u8g.setPrintPos(38, 45); 
+ u8g.print(patternDisplay);
+
+ //int bpmCut = bpm;
+
+ u8g.drawStr( 0, 62, "BPM");
+ u8g.setPrintPos(38, 62); 
+ u8g.print(bpm);
+ 
+ u8g.drawStr( 72, 28, "Chan");
+ u8g.setPrintPos(110, 28); 
+ u8g.print(midiChannelDisplay);
+ 
+ u8g.drawStr( 72, 45, "Note");
+ u8g.setPrintPos(110, 45); 
+ u8g.print(midiNoteDisplay);
+
+ u8g.drawStr( 72, 62, "Velo");
+ u8g.setPrintPos(110, 62); 
+ u8g.print(midiVelocityDisplay);
+
+
+ //Menü
+ u8g.setColorIndex(1);
+ u8g.setColorIndex(0);
+ u8g.setColorIndex(1);
+ 
+ //Parameterwerte
+
+
+/*
+ u8g.drawLine(62, 17, 62, 48);
+ u8g.drawLine(50, 48, 128, 48);
+ u8g.drawLine(50, 48, 50, 64);
+ */
+}
+
+
+void markMenu(int test){
+  
+  u8g.setFont(u8g_font_profont12);
+  u8g.setColorIndex(1);
+
+    switch (test) {
+      case 1:
+        u8g.drawBox(36,17,32,14);
+        u8g.setColorIndex(0);
+        u8g.setPrintPos(38, 28); 
+        u8g.print(spurNamen[seqSpurAktiv]);
+        break; 
+      case 2:
+        u8g.drawBox(36,34,32,14);
+        u8g.setColorIndex(0);
+        u8g.setPrintPos(38, 45); 
+        u8g.print(patternDisplay);
+        break;
+      case 3:
+        u8g.drawBox(36,51,32,14);
+        u8g.setColorIndex(0);
+        u8g.setPrintPos(38, 62); 
+        u8g.print(bpm);
+        break;
+      case 4:
+        u8g.drawBox(98,17,32,14);
+        u8g.setColorIndex(0);
+        u8g.setPrintPos(110, 28); 
+        u8g.print(midiChannelDisplay);
+        break;
+      case 5:
+        u8g.drawBox(98,34,32,14);
+        u8g.setColorIndex(0);
+        u8g.setPrintPos(110, 45); 
+        u8g.print(midiNoteDisplay);
+        break;
+      case 6:
+        u8g.drawBox(98,51,32,14);
+        u8g.setColorIndex(0);
+        u8g.setPrintPos(110, 62); 
+        u8g.print(midiVelocityDisplay);
+        break;
+      default:
+        break;
+    }
+}
