@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <U8glib.h>
+#include <Adafruit_I2CDevice.h>
+#include <Adafruit_SSD1306.h>
+
 
 byte variable = 0;
 byte randNumber;
