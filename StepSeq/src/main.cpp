@@ -346,8 +346,25 @@ static boolean rotating=false;      // debounce management
 boolean A_set = false;            
 boolean B_set = false;
 
-
-
+uint8_t mcpRead (byte mcpAdress, byte registerAdress);
+void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues);
+void markMenu(int test);
+void draw(void);
+void beatClock(byte realtimebyte);
+void digitalWriteMCP(byte stepNummer, boolean anOderAus);
+void seqTrackToLED(byte trackNr);
+void seqLauflicht (byte schrittNr);
+void buttonInterrupt1();
+void buttonInterrupt0();
+void seqNoteSchreiben(byte noteInBits, int mcpNummer);
+void buttonsAbfragen(byte woGedrueckt);
+void stopInterrupt();
+void trackInterrupt();
+void doEncoderA();
+void doEncoderB();
+void loadPreset (int whichPreset);
+void sendMidiNotes(byte spur, byte schritt);
+void encoderSwitch();
 /*------------------------SETUP-----------------------*/
 
 void setup() {
@@ -1163,9 +1180,58 @@ void draw(void) {
  u8g.setPrintPos(38, 28); 
  u8g.print(spurNamen[seqSpurAktiv]);
 
+ u8g.drawStr( 0, 45, "Patt"); //Presetname
+ u8g.setColorIndex(1);
+ u8g.drawBox(0,0,128,16);
+ u8g.setColorIndex(0);
+ u8g.setFont(u8g_font_helvB10);
+ u8g.drawStr( 2, 13, "DRUMSI");
+ //u8g.drawBitmapP( 116, 4, 1, 8, MidiIn);
+ u8g.setColorIndex(1);
+
+
+ //Parameternamen
+ u8g.setFont(u8g_font_profont12);
+ u8g.drawStr( 0, 28, "Trck");
+ u8g.setPrintPos(38, 28); 
+ u8g.print(spurNamen[seqSpurAktiv]);
+
  u8g.drawStr( 0, 45, "Patt");
  u8g.setPrintPos(38, 45); 
  u8g.print(patternDisplay);
+
+ //int bpmCut = bpm;
+
+ u8g.drawStr( 0, 62, "BPM");
+ u8g.setPrintPos(38, 62); 
+ u8g.print(bpm);
+ 
+ u8g.drawStr( 72, 28, "Chan");
+ u8g.setPrintPos(110, 28); 
+ u8g.print(midiChannelDisplay);
+ 
+ u8g.drawStr( 72, 45, "Note");
+ u8g.setPrintPos(110, 45); 
+ u8g.print(midiNoteDisplay);
+
+ u8g.drawStr( 72, 62, "Velo");
+ u8g.setPrintPos(110, 62); 
+ u8g.print(midiVelocityDisplay);
+
+
+ //Menü
+ u8g.setColorIndex(1);
+ u8g.setColorIndex(0);
+ u8g.setColorIndex(1);
+ 
+ //Parameterwerte
+
+
+/*
+ u8g.drawLine(62, 17, 62, 48);
+ u8g.drawLine(50, 48, 128, 48);
+ u8g.drawLine(50, 48, 50, 64);
+ */
 
  //int bpmCut = bpm;
 
