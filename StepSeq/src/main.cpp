@@ -166,7 +166,7 @@ void setup() {
   /************  Reset PIN Setup  *************/
   pinMode(26, INPUT);
 
-  usbMIDI.setHandleRealTimeSystem(beatClock);
+  // usbMIDI.setHandleRealTimeSystem(beatClock);
   
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT);
@@ -192,148 +192,143 @@ void setup() {
 
 
 void loop() {
-
-  // picture loop
-  u8g.firstPage(); 
-  do 
-  {
-    draw(); 
-    if (encButtonIsActive == true){
-      markMenu(menuActiveSelection);
-    }
-    else
-    {
-      if (millis() - menuInvertedLastStamp > 500)
-      {
-        markMenu(menuActiveSelection);
-      }
-    }
-
-    
-  }
-  while (u8g.nextPage());
-
   
+  // // picture loop
+  // u8g.firstPage(); 
+  // do 
+  // {
+  //   draw(); 
+  //   if (encButtonIsActive == true){
+  //     markMenu(menuActiveSelection);
+  //   }
+  //   else
+  //   {
+  //     if (millis() - menuInvertedLastStamp > 500)
+  //     {
+  //       markMenu(menuActiveSelection);
+  //     }
+  //   }
 
-
-  encValue = digitalRead(6);
-
-
-  if ((encValue == LOW) && (encValueOld == HIGH)) {
-    lastReportedPos = encoderPos;
     
+  // }
+  // while (u8g.nextPage());
 
-    if (digitalRead(7) == HIGH) {
-      encoderPos++;
-    }
-    else {
-      encoderPos--;
-    }Serial.println(encoderPos);
-  } 
-  encValueOld = encValue;
+  // encValue = digitalRead(6);
 
-  if (millis() - encButtonLastStamp > 300 && digitalRead(5) == LOW)
-  {
-    encButtonIsActive = !encButtonIsActive;
-    digitalWrite(13, encButtonIsActive);
-    encButtonLastStamp = millis();
-  }
+  // if ((encValue == LOW) && (encValueOld == HIGH)) {
+  //   lastReportedPos = encoderPos;
+
+  //   if (digitalRead(7) == HIGH) {
+  //     encoderPos++;
+  //   }
+  //   else {
+  //     encoderPos--;
+  //   }Serial.println(encoderPos);
+  // } 
+  // encValueOld = encValue;
+
+  // if (millis() - encButtonLastStamp > 300 && digitalRead(5) == LOW)
+  // {
+  //   encButtonIsActive = !encButtonIsActive;
+  //   digitalWrite(13, encButtonIsActive);
+  //   encButtonLastStamp = millis();
+  // }
 
 
-  if (displayValueChange == true) { displayValueChange = false; } 
+  // if (displayValueChange == true) { displayValueChange = false; } 
 
-  // Display aktualisieren
-  if (encButtonIsActive == true )
-  {  
-    if (encoderPos != lastReportedPos)
-    {
-      if (encoderPos-lastReportedPos < 0)
-      {
-      menuActiveSelection = menuActiveSelection - 1;
-      if (menuActiveSelection <= 0) { menuActiveSelection = 6; }
-      }
-      else 
-      {
-      menuActiveSelection = menuActiveSelection + 1;
-      if (menuActiveSelection > 6) { menuActiveSelection = 1; }
-      } 
-    }
-    lastReportedPos = encoderPos;
-  }  
-  // Display aktualisieren, Button nicht gedrückt, Parameter lassen sich ändern
-  else if ((encButtonIsActive == false  && displayValueChange == true) || (encButtonIsActive == false  && millis() - menuInvertedLastStamp >= 1000))
-  {
-    if (invertMenu == true)
-    {
-      // unmark Menu BÖSE
-      //markMenuInt(0);
-    }
-    else
-    { // BÖSE
-      //markMenuInt(menuAktuell);
-        markMenu(menuActiveSelection);
-    }
-    // Display invertieren nach 500ms
-    if (millis() - menuInvertedLastStamp >= 500)
-    {
-      invertMenu = !invertMenu;
-      menuInvertedLastStamp = millis();
-    }
-    displayValueChange = false;
-  }
+  // // Display aktualisieren
+  // if (encButtonIsActive == true )
+  // {  
+  //   if (encoderPos != lastReportedPos)
+  //   {
+  //     if (encoderPos-lastReportedPos < 0)
+  //     {
+  //     menuActiveSelection = menuActiveSelection - 1;
+  //     if (menuActiveSelection <= 0) { menuActiveSelection = 6; }
+  //     }
+  //     else 
+  //     {
+  //     menuActiveSelection = menuActiveSelection + 1;
+  //     if (menuActiveSelection > 6) { menuActiveSelection = 1; }
+  //     } 
+  //   }
+  //   lastReportedPos = encoderPos;
+  // }  
+  // // Display aktualisieren, Button nicht gedrückt, Parameter lassen sich ändern
+  // else if ((encButtonIsActive == false  && displayValueChange == true) || (encButtonIsActive == false  && millis() - menuInvertedLastStamp >= 1000))
+  // {
+  //   if (invertMenu == true)
+  //   {
+  //     // unmark Menu BÖSE
+  //     //markMenuInt(0);
+  //   }
+  //   else
+  //   { // BÖSE
+  //     //markMenuInt(menuAktuell);
+  //       markMenu(menuActiveSelection);
+  //   }
+  //   // Display invertieren nach 500ms
+  //   if (millis() - menuInvertedLastStamp >= 500)
+  //   {
+  //     invertMenu = !invertMenu;
+  //     menuInvertedLastStamp = millis();
+  //   }
+  //   displayValueChange = false;
+  // }
 
-  // Hier werden die Parameter der einzelnen Funktionen verändert
-  if (lastReportedPos != encoderPos && encButtonIsActive == false)
-  {
-    switch (menuActiveSelection)
-        {
-          case 1:
-            seqSpurAktiv = seqSpurAktiv + encoderPos - lastReportedPos;
-            if (seqSpurAktiv > 200) { seqSpurAktiv = 0; }
-            else if (seqSpurAktiv > 7 && seqSpurAktiv <= 200) { seqSpurAktiv = 7; }
-            midiNoteDisplay = midiNotes[seqSpurAktiv][0];
-            displayValueChange = true;
-            break;
-          case 2:
-            menuActivePattern = menuActivePattern + encoderPos - lastReportedPos;
-            if (menuActivePattern < 1){ menuActivePattern = 1; }
-            else if (menuActivePattern > 8){ menuActivePattern = 8; }
-            loadPreset(menuActivePattern+8);
-            displayValueChange = true;
-            break;
-          case 3:
-            bpm = bpm + encoderPos - lastReportedPos;
-            if (bpm < 60) { bpm = 60; }
-            else if (bpm > 240) { bpm = 240; }
-            tempo = (1000.000 / (bpm / 60 * noteLength)) - offset;
-            displayValueChange = true;          
-            break;
-          case 4:
-            midiChannelDisplay = midiChannelDisplay + encoderPos - lastReportedPos;
-            if (midiChannelDisplay <= 0) { midiChannelDisplay = 1; }
-            else if (midiChannelDisplay > 16) { midiChannelDisplay = 16; }
-            displayValueChange = true;
-            break;
-          case 5:
-            midiNoteDisplay = midiNoteDisplay + encoderPos - lastReportedPos;
-            if (midiNoteDisplay < 0) { midiNoteDisplay = 0; }
-            else if (midiNoteDisplay > 127) { midiNoteDisplay = 127; }
-            midiNotes[seqSpurAktiv][0] = midiNoteDisplay;
-            displayValueChange = true;
-            break;
-          case 6:
-            midiVelocityDisplay = midiVelocityDisplay + encoderPos - lastReportedPos;
-            if (midiVelocityDisplay < 0) { midiVelocityDisplay = 127; }
-            else if (midiVelocityDisplay > 127) { midiVelocityDisplay = 0; }
-            displayValueChange = true;
-            break;
-          default:
-            break;
-        }   
-        lastReportedPos = encoderPos;
-  }
+  // // Hier werden die Parameter der einzelnen Funktionen verändert
+  // if (lastReportedPos != encoderPos && encButtonIsActive == false)
+  // {
+  //   switch (menuActiveSelection)
+  //       {
+  //         case 1:
+  //           seqSpurAktiv = seqSpurAktiv + encoderPos - lastReportedPos;
+  //           if (seqSpurAktiv > 200) { seqSpurAktiv = 0; }
+  //           else if (seqSpurAktiv > 7 && seqSpurAktiv <= 200) { seqSpurAktiv = 7; }
+  //           midiNoteDisplay = midiNotes[seqSpurAktiv][0];
+  //           displayValueChange = true;
+  //           break;
+  //         case 2:
+  //           menuActivePattern = menuActivePattern + encoderPos - lastReportedPos;
+  //           if (menuActivePattern < 1){ menuActivePattern = 1; }
+  //           else if (menuActivePattern > 8){ menuActivePattern = 8; }
+  //           loadPreset(menuActivePattern+8);
+  //           displayValueChange = true;
+  //           break;
+  //         case 3:
+  //           bpm = bpm + encoderPos - lastReportedPos;
+  //           if (bpm < 60) { bpm = 60; }
+  //           else if (bpm > 240) { bpm = 240; }
+  //           tempo = (1000.000 / (bpm / 60 * noteLength)) - offset;
+  //           displayValueChange = true;          
+  //           break;
+  //         case 4:
+  //           midiChannelDisplay = midiChannelDisplay + encoderPos - lastReportedPos;
+  //           if (midiChannelDisplay <= 0) { midiChannelDisplay = 1; }
+  //           else if (midiChannelDisplay > 16) { midiChannelDisplay = 16; }
+  //           displayValueChange = true;
+  //           break;
+  //         case 5:
+  //           midiNoteDisplay = midiNoteDisplay + encoderPos - lastReportedPos;
+  //           if (midiNoteDisplay < 0) { midiNoteDisplay = 0; }
+  //           else if (midiNoteDisplay > 127) { midiNoteDisplay = 127; }
+  //           midiNotes[seqSpurAktiv][0] = midiNoteDisplay;
+  //           displayValueChange = true;
+  //           break;
+  //         case 6:
+  //           midiVelocityDisplay = midiVelocityDisplay + encoderPos - lastReportedPos;
+  //           if (midiVelocityDisplay < 0) { midiVelocityDisplay = 127; }
+  //           else if (midiVelocityDisplay > 127) { midiVelocityDisplay = 0; }
+  //           displayValueChange = true;
+  //           break;
+  //         default:
+  //           break;
+  //       }   
+  //       lastReportedPos = encoderPos;
+  // }
 
-  rotating = true;  // reset the debouncer
+  // rotating = true;  // reset the debouncer
 
   // LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
   if (changeTrack == true){
@@ -413,9 +408,11 @@ void loop() {
 
 void encoderSwitch(){
   if (millis() - encButtonLastStamp > 300)
+  {
     encButtonIsActive = !encButtonIsActive;
     digitalWrite(40, encButtonIsActive);
     encButtonLastStamp = millis();
+  }
 }
 
 // sendet MIDI Noten aus dem aktuellen S
@@ -633,34 +630,34 @@ void digitalWriteMCP(byte stepNummer, bool anOderAus){
 }
 
 
-void beatClock(byte realtimebyte) {
+// void beatClock(byte realtimebyte) {
 
-  if(realtimebyte == MIDI_START) { midiCounter = 0; midiLastStamp = millis(); }
-  if(realtimebyte == MIDI_CONTINUE) { midiLastStamp = millis(); }
-  if(realtimebyte == MIDI_STOP) { digitalWrite(13, LOW); }
+//   if(realtimebyte == MIDI_START) { midiCounter = 0; midiLastStamp = millis(); }
+//   if(realtimebyte == MIDI_CONTINUE) { midiLastStamp = millis(); }
+//   if(realtimebyte == MIDI_STOP) { digitalWrite(13, LOW); }
   
-  if(realtimebyte == MIDI_CLOCK) {
+//   if(realtimebyte == MIDI_CLOCK) {
     
-    midiCounter++;
-    if (midiCounter == 97) {midiCounter = 1;}
-    if(midiCounter == 1 || midiCounter == 24 || midiCounter == 48 || midiCounter == 72) { 
-      digitalWrite(13, HIGH);
-    } 
-    if(midiCounter == 5 || midiCounter == 25 || midiCounter == 49 || midiCounter == 73) { 
-      digitalWrite(13, LOW);
-    }
-  }
+//     midiCounter++;
+//     if (midiCounter == 97) {midiCounter = 1;}
+//     if(midiCounter == 1 || midiCounter == 24 || midiCounter == 48 || midiCounter == 72) { 
+//       digitalWrite(13, HIGH);
+//     } 
+//     if(midiCounter == 5 || midiCounter == 25 || midiCounter == 49 || midiCounter == 73) { 
+//       digitalWrite(13, LOW);
+//     }
+//   }
 
-  if (midiCounter == 24 || midiCounter == 48 || midiCounter == 72 || midiCounter == 96 ) {
-    bpm = round((60000 / (millis() - midiLastStamp)));
+//   if (midiCounter == 24 || midiCounter == 48 || midiCounter == 72 || midiCounter == 96 ) {
+//     bpm = round((60000 / (millis() - midiLastStamp)));
 
-    changeTempo = true;
+//     changeTempo = true;
 
-    Serial.print(bpm);
-    Serial.println(" BPM");
-    midiLastStamp = millis();
-  }
-}
+//     Serial.print(bpm);
+//     Serial.println(" BPM");
+//     midiLastStamp = millis();
+//   }
+// }
 
 
 uint8_t mcpRead (byte mcpAdress, byte registerAdress){
