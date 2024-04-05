@@ -3,35 +3,22 @@
 #include <U8glib.h>
 #include <Adafruit_I2CDevice.h>
 #include <Adafruit_SSD1306.h>
-#include <mcp23017.h>
+#include <drumsi_mcp23017.h>
 #include <drumsi_pattern.h>
 #include <drumsi_menu.h>
 
 
-const int ENC_PIN_A = 6;
-const int ENC_PIN_B = 7;
-
-const int MCP_PIN_INT_A = 26;
-const int MCP_PIN_INT_B = 28;
-
-const byte MIDI_START = 250;
-const byte MIDI_CONTINUE = 251;
-const byte MIDI_STOP = 252;
-const byte MIDI_CLOCK = 248;
-
-const int SSD_PIN_RESET = 13;
 
 volatile byte buttonPressed = 0;
 
 
-U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
 bool displayValueChange = false;
 
 bool invertMenu = true;
 int menuActivePattern = 0;
 int menuActiveSelection = 1;
-enum menuSelection {SPUR, TEMPO, SAVE, PATTERN, MIDI_NOTE, MIDI_VELOCITY};
-menuSelection menuPosition = SPUR;
+
+
 unsigned long menuInvertedLastStamp = 0;
 
 int encValue = HIGH;
@@ -100,8 +87,8 @@ void sendMidiNotes(byte spur, byte schritt);
 
 // buttons
 void digitalWriteMCP(byte stepNummer, bool anOderAus);
-void buttonInterrupt0();
-void buttonInterrupt1();
+void buttonInterruptA();
+void buttonInterruptB();
 void buttonsAbfragen(byte woGedrueckt);
 void trackInterrupt();
 
@@ -133,49 +120,72 @@ void setup() {
   myTimer.priority(0);
   myTimer.begin(timer, 250000);
 
+  const int ENC_PIN_A = 6;
+  const int ENC_PIN_B = 7;
 
-  DisplayMenu* Menu = DisplayMenu::getInstance();
+  const int MCP_PIN_INT_A = 26;
+  const int MCP_PIN_INT_B = 28;
 
-  Menu->setValues(1,2);
+  const byte MIDI_START = 250;
+  const byte MIDI_CONTINUE = 251;
+  const byte MIDI_STOP = 252;
+  const byte MIDI_CLOCK = 248;
+
+  const int SSD_PIN_RESET = 13;
+
+  U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
+
+
+
+
+  DisplayMenu& Menu = DisplayMenu::getInstance();
+
+  Menu.someMethod();
+
+  // Menu->setValues(1,2);
+
+  DisplayMenu::MenuSelection menuPosition = DisplayMenu::MenuSelection::SPUR;
 
 
   // Wire.begin();
   Serial.begin(31250); 
+
+
+  MCP23017& mcp = MCP23017::getInstance();
   
   // /************  MCP23017 Setup  *************/
-  // pinMode(MCP_PIN_INT_A, INPUT);
-  // attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonInterrupt0, FALLING);
+  pinMode(MCP_PIN_INT_A, INPUT);
+  attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonInterruptA, FALLING);
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
+  delay(250); 
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::GPIOA,    B00000000);    // LEDs ausschalten
+  delay(250);
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::IOCONA,   B00000000);   // set InterruptPinPol Interrupt bei LOW-Signal
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::IOCONB,   B00000000);
+  delay(10);
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::IODIRB,   B11111111);   // IO Direction Register: 1=Input, 0=Output, Buttons als Input
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::GPINTENB, B11111111);   // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::INTCONB,  B11111111);   // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
+  mcp.write(MCP23017::ADDRESS_1, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
-  // mcpWrite(MCP_ADDRESS_1, MCP_IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
-  // mcpWrite(MCP_ADDRESS_1, MCP_GPIOA,    B11111111);    // LEDs anschalten
-  // delay(250); 
-  // mcpWrite(MCP_ADDRESS_1, MCP_GPIOA,    B00000000);    // LEDs ausschalten
-  // delay(250);
-  // mcpWrite(MCP_ADDRESS_1, MCP_IOCONA,   B00000000);   // set InterruptPinPol Interrupt bei LOW-Signal
-  // mcpWrite(MCP_ADDRESS_1, MCP_IOCONB,   B00000000);
-  // delay(10);
-  // mcpWrite(MCP_ADDRESS_1, MCP_IODIRB,   B11111111);   // IO Direction Register: 1=Input, 0=Output, Buttons als Input
-  // mcpWrite(MCP_ADDRESS_1, MCP_GPINTENB, B11111111);   // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
-  // mcpWrite(MCP_ADDRESS_1, MCP_INTCONB,  B11111111);   // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
-  // mcpWrite(MCP_ADDRESS_1, MCP_DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
-  // mcpWrite(MCP_ADDRESS_1, MCP_GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
+  pinMode(MCP_PIN_INT_B, INPUT);
+  attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonInterruptB, FALLING);
 
-  // pinMode(MCP_PIN_INT_B, INPUT);
-  // attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonInterrupt1, FALLING);
-
-  // mcpWrite(MCP_ADDRESS_2, MCP_IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
-  // mcpWrite(MCP_ADDRESS_2, MCP_GPIOA,    B11111111);    // LEDs anschalten
-  // delay(250); 
-  // mcpWrite(MCP_ADDRESS_2, MCP_GPIOA,    B00000000);    // LEDs ausschalten
-  // delay(250);
-  // mcpWrite(MCP_ADDRESS_2, MCP_IOCONA,   B00000000);   // set InterruptPinPol Interrupt bei LOW-Signal
-  // mcpWrite(MCP_ADDRESS_2, MCP_IOCONB,   B00000000);
-  // delay(10);
-  // mcpWrite(MCP_ADDRESS_2, MCP_IODIRB,   B11111111);   // IO Direction Register: 1=Input, 0=Output, Buttons als Input
-  // mcpWrite(MCP_ADDRESS_2, MCP_GPINTENB, B11111111);   // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
-  // mcpWrite(MCP_ADDRESS_2, MCP_INTCONB,  B11111111);   // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
-  // mcpWrite(MCP_ADDRESS_2, MCP_DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
-  // mcpWrite(MCP_ADDRESS_2, MCP_GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
+  delay(250); 
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA,    B00000000);    // LEDs ausschalten
+  delay(250);
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::IOCONA,   B00000000);   // set InterruptPinPol Interrupt bei LOW-Signal
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::IOCONB,   B00000000);
+  delay(10);
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::IODIRB,   B11111111);   // IO Direction Register: 1=Input, 0=Output, Buttons als Input
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::GPINTENB, B11111111);   // Interrupt-on-change Control Register: 0=Disable, 1=Enable, alle B-Ports haben für die Buttons Interrupts
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::INTCONB,  B11111111);   // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
+  mcp.write(MCP23017::ADDRESS_2, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
   // /************  Button 1 -STOP- Interrupt  *************/
   // pinMode(2, INPUT_PULLUP);
@@ -400,8 +410,8 @@ void loop() {
   }
 
     // MCPs müssen ausgelesen werden um die Interrupts zurück zu setzen, ansonsten bleiben MCPs stehen
-    mcpRead(MCP_ADDRESS_1,MCP_INTCAPB);
-    mcpRead(MCP_ADDRESS_2,MCP_INTCAPB);
+    mcpRead(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
+    mcpRead(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
     // usbMIDI.read();
 
@@ -560,10 +570,10 @@ void buttonsAbfragen(byte woGedrueckt)
   byte statusICR = 0;
   byte mcpWahl = 0;
 
-  if (woGedrueckt == 1 ) {  mcpWahl = MCP_ADDRESS_1; }
-  if (woGedrueckt == 2 ) {  mcpWahl = MCP_ADDRESS_2; }
+  if (woGedrueckt == 1 ) {  mcpWahl = MCP23017::ADDRESS_1; }
+  if (woGedrueckt == 2 ) {  mcpWahl = MCP23017::ADDRESS_2; }
 
-  statusICR = mcpRead(mcpWahl,MCP_INTFB); 
+  statusICR = mcpRead(mcpWahl,MCP23017::INTFB); 
   lastButtonPressed = statusICR;
 
   if (statusICR != 0) { seqNoteSchreiben(statusICR, mcpWahl); }
@@ -611,7 +621,7 @@ void seqNoteSchreiben(byte noteInBits, int mcpNummer)
 }
 
 // Button von MPC23017-1 wird gedrückt
-void buttonInterrupt0(){
+void buttonInterruptA(){
   if ( ( millis()-lastInterrupt >= 50) && (buttonPressed == 0))
   {
     buttonPressed = 1;
@@ -619,7 +629,7 @@ void buttonInterrupt0(){
   }
 }
 
-void buttonInterrupt1(){
+void buttonInterruptB(){
   if ( ( millis()-lastInterrupt >= 50) && (buttonPressed == 0))
   {
     buttonPressed = 2;
@@ -646,10 +656,10 @@ void digitalWriteMCP(byte stepNummer, bool anOderAus){
   byte pinNumber = 0;
   byte mcpWahl = 0;
 
-  if ( stepNummer >= 8){ mcpWahl = MCP_ADDRESS_2; }
-  else { mcpWahl = MCP_ADDRESS_1; }
+  if ( stepNummer >= 8){ mcpWahl = MCP23017::ADDRESS_2; }
+  else { mcpWahl = MCP23017::ADDRESS_1; }
   
-  statusGP = mcpRead(mcpWahl, MCP_GPIOA);
+  statusGP = mcpRead(mcpWahl, MCP23017::GPIOA);
 
   if (stepNummer >= 8) { pinNumber = stepNummer-8; }
   else { pinNumber = stepNummer;}
@@ -659,7 +669,7 @@ void digitalWriteMCP(byte stepNummer, bool anOderAus){
   else if (anOderAus == 1) { statusGP |= (B00000001 << (pinNumber));
   }
 
-  mcpWrite(mcpWahl, MCP_GPIOA, statusGP);
+  mcpWrite(mcpWahl, MCP23017::GPIOA, statusGP);
 }
 
 

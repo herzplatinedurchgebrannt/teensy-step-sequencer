@@ -1,23 +1,24 @@
-#ifndef SINGLETON_H
-#define SINGLETON_H
+#ifndef DISPLAYMENU_H
+#define DISPLAYMENU_H
 
 #include <iostream>
 
 class DisplayMenu {
-private:
-    int name, loves;
-    static DisplayMenu* instancePtr;
 
-    DisplayMenu() {}
+  public:
+    static DisplayMenu& getInstance();
+    void someMethod();
 
-public:
-    DisplayMenu(const DisplayMenu&) = delete;
-
-    static DisplayMenu* getInstance();
-
-    void setValues(int name, int loves);
-
-    void print();
+    enum MenuSelection {SPUR, TEMPO, SAVE, PATTERN, MIDI_NOTE, MIDI_VELOCITY};
+    
+  private:
+    DisplayMenu(); // Private constructor to prevent instantiation
+    DisplayMenu(const DisplayMenu&) = delete; // Delete copy constructor
+    void operator=(const DisplayMenu&) = delete; // Delete assignment operator
 };
 
-#endif // SINGLETON_H
+#endif // DISPLAYMENU_H
+
+
+
+
