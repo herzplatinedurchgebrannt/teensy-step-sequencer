@@ -3,8 +3,10 @@
 #include <U8glib.h>
 #include <Adafruit_I2CDevice.h>
 #include <Adafruit_SSD1306.h>
-#include "mcp23017.h"
+#include <mcp23017.h>
 #include <drumsi_pattern.h>
+#include <drumsi_menu.h>
+
 
 const int ENC_PIN_A = 6;
 const int ENC_PIN_B = 7;
@@ -41,9 +43,8 @@ byte midiCounter = 0;
 float midiLastStamp = 0;
 float noteLength = 4.000;
 float bpm = 120.000;
-//float offset = 15;  // WHY OFFSET?!
 float offset = 0;
-float tempo = (1000.000/(bpm/60*noteLength))-offset;
+float tempo = (1000.000/(bpm/60*noteLength));
 float bpmClock = 0;
 int changeTempo = false;
 
@@ -83,36 +84,48 @@ bool A_set = false;
 bool B_set = false;
 
 
-
+// MCP
 uint8_t mcpRead (byte mcpAdress, byte registerAdress);
 void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues);
+
+// MENU
 void markMenu(int test);
+
+// SSD1306
 void draw(void);
+
+// Player
 void beatClock(byte realtimebyte);
+void sendMidiNotes(byte spur, byte schritt);
+
+// buttons
 void digitalWriteMCP(byte stepNummer, bool anOderAus);
+void buttonInterrupt0();
+void buttonInterrupt1();
+void buttonsAbfragen(byte woGedrueckt);
+void trackInterrupt();
+
+// leds
 void seqTrackToLED(byte trackNr);
 void seqLauflicht (byte schrittNr);
-void buttonInterrupt1();
-void buttonInterrupt0();
+
+// Pattern
 void seqNoteSchreiben(byte noteInBits, int mcpNummer);
-void buttonsAbfragen(byte woGedrueckt);
 void togglePlaybackState();
-void trackInterrupt();
 void loadPreset (int whichPreset);
-void sendMidiNotes(byte spur, byte schritt);
+
+// encoder
 void encoderSwitch();
 
 
-// NEW STUFF
-
-// Create an IntervalTimer object 
 IntervalTimer myTimer;
 
 
-void timer() {
-  usbMIDI.sendNoteOn(midiNotes[0][0], 127, midiChannelDisplay);
-  usbMIDI.sendNoteOff(midiNotes[0][0], 127, midiChannelDisplay);
 
+
+void timer() {
+    usbMIDI.sendNoteOn(midiNotes[0][0], 127, midiChannelDisplay);
+    usbMIDI.sendNoteOff(midiNotes[0][0], 127, midiChannelDisplay);
 }
 
 void setup() {
@@ -121,8 +134,13 @@ void setup() {
   myTimer.begin(timer, 250000);
 
 
+  DisplayMenu* Menu = DisplayMenu::getInstance();
+
+  Menu->setValues(1,2);
+
+
   // Wire.begin();
-  // Serial.begin(31250); 
+  Serial.begin(31250); 
   
   // /************  MCP23017 Setup  *************/
   // pinMode(MCP_PIN_INT_A, INPUT);
@@ -346,77 +364,77 @@ void loop() {
   // rotating = true;  // reset the debouncer
   #pragma endregion
 
-  // // LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
-  // if (changeTrack == true){
-  //   digitalWrite(39, HIGH);
-  // }
+  // LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
+  if (changeTrack == true){
+    digitalWrite(39, HIGH);
+  }
 
-  // // ChangeTrack Button2 ist aktiv und ein Auswahlbutton wurde gedrückt. B1-8=> Spurwechselm B9-16=> Patternwechsel
-  // if (changeTrack == true && lastButtonPressed != 0)
-  // {
-  //   if (lastButtonPressed <= 8)
-  //   {
-  //     seqSpurAktiv = lastButtonPressed-1;
-  //     midiNoteDisplay = midiNotes[seqSpurAktiv][0];
+  // ChangeTrack Button2 ist aktiv und ein Auswahlbutton wurde gedrückt. B1-8=> Spurwechselm B9-16=> Patternwechsel
+  if (changeTrack == true && lastButtonPressed != 0)
+  {
+    if (lastButtonPressed <= 8)
+    {
+      seqSpurAktiv = lastButtonPressed-1;
+      midiNoteDisplay = midiNotes[seqSpurAktiv][0];
 
-  //     lastTimeTrack = millis();
-  //     changeTrack = false;
+      lastTimeTrack = millis();
+      changeTrack = false;
 
-  //     sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-  //     digitalWrite(39, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
-  //     lastButtonPressed = 0;
-  //   }
+      sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+      digitalWrite(39, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
+      lastButtonPressed = 0;
+    }
     
-  //   else if (lastButtonPressed > 8 && lastButtonPressed <= 16)
-  //   {
-  //     loadPreset (lastButtonPressed);  
-  //     menuActivePattern = lastButtonPressed -8;
+    else if (lastButtonPressed > 8 && lastButtonPressed <= 16)
+    {
+      loadPreset (lastButtonPressed);  
+      menuActivePattern = lastButtonPressed -8;
 
-  //     lastTimeTrack = millis();
-  //     changeTrack = false;
+      lastTimeTrack = millis();
+      changeTrack = false;
 
-  //     sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-  //     digitalWrite(39, LOW);  
-  //     lastButtonPressed = 0;
-  //   }
-  // }
+      sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+      digitalWrite(39, LOW);  
+      lastButtonPressed = 0;
+    }
+  }
 
-  //   // MCPs müssen ausgelesen werden um die Interrupts zurück zu setzen, ansonsten bleiben MCPs stehen
-  //   mcpRead(MCP_ADDRESS_1,MCP_INTCAPB);
-  //   mcpRead(MCP_ADDRESS_2,MCP_INTCAPB);
+    // MCPs müssen ausgelesen werden um die Interrupts zurück zu setzen, ansonsten bleiben MCPs stehen
+    mcpRead(MCP_ADDRESS_1,MCP_INTCAPB);
+    mcpRead(MCP_ADDRESS_2,MCP_INTCAPB);
 
-  //   // usbMIDI.read();
+    // usbMIDI.read();
 
-  //   // Hier ist die Zeitschleife
-  //   if (millis()-lastTime >= tempo  && startStopInterrupt == false && unknownFlag == true)
-  //   {    
-  //     // LEDs von der aktuell angewählten Spur werden angezeigt
-  //     seqTrackToLED(seqSpurAktiv);
+    // Hier ist die Zeitschleife
+    if (millis()-lastTime >= tempo  && startStopInterrupt == false && unknownFlag == true)
+    {    
+      // LEDs von der aktuell angewählten Spur werden angezeigt
+      seqTrackToLED(seqSpurAktiv);
 
-  //     // Lauflichteffekt
-  //     seqLauflicht(seqStepAktuell);
+      // Lauflichteffekt
+      seqLauflicht(seqStepAktuell);
 
-  //     // Midi Noten raus schicken per USB
-  //     sendMidiNotes(seqSpurAktiv, seqStepAktuell);
+      // Midi Noten raus schicken per USB
+      sendMidiNotes(seqSpurAktiv, seqStepAktuell);
 
-  //     // Schritt hochzählen
-  //     seqStepAktuell = seqStepAktuell + 1;
-  //     if (seqStepAktuell == 16){ seqStepAktuell = 0;}
+      // Schritt hochzählen
+      seqStepAktuell = seqStepAktuell + 1;
+      if (seqStepAktuell == 16){ seqStepAktuell = 0;}
 
-  //     // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
-  //     lastTime = millis();
-  //   }
+      // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
+      lastTime = millis();
+    }
 
-  //   if (buttonPressed != 0 && sendOkay == true)
-  //   {
-  //     buttonsAbfragen(buttonPressed);
-  //     buttonPressed = 0;    
-  //   }
+    if (buttonPressed != 0 && sendOkay == true)
+    {
+      buttonsAbfragen(buttonPressed);
+      buttonPressed = 0;    
+    }
 
-  //   if (digitalRead(26) == 1 && digitalRead(28) == 1)
-  //   {
-  //     sendOkay = true;
-  //   }
+    if (digitalRead(26) == 1 && digitalRead(28) == 1)
+    {
+      sendOkay = true;
+    }
 }
 
 
