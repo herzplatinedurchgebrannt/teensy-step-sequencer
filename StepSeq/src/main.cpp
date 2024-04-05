@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <Wire.h>
+// #include <Wire.h>
 #include <U8glib.h>
 #include <Adafruit_I2CDevice.h>
 #include <Adafruit_SSD1306.h>
@@ -7,7 +7,26 @@
 #include <drumsi_pattern.h>
 #include <drumsi_menu.h>
 
+// --- PIN CONFIGURATION ---
+const int ENC_PIN_A = 6;
+const int ENC_PIN_B = 7;
 
+const int MCP_PIN_INT_A = 26;
+const int MCP_PIN_INT_B = 28;
+
+const byte MIDI_START = 250;
+const byte MIDI_CONTINUE = 251;
+const byte MIDI_STOP = 252;
+const byte MIDI_CLOCK = 248;
+
+const int SSD_PIN_RESET = 13;
+
+const int BUTTON_PLAY_PIN = 2;
+const int BUTTON_PLAY_LED = 38;
+const int BUTTON_TRACK_PIN = 3;
+const int BUTTON_TRACK_LED = 39;
+
+const int RESET_PIN = 26;
 
 volatile byte buttonPressed = 0;
 
@@ -71,9 +90,15 @@ bool A_set = false;
 bool B_set = false;
 
 
+// create singleton
+MCP23017& mcp = MCP23017::getInstance();
+DisplayMenu& menu = DisplayMenu::getInstance();
+
+
+
 // MCP
-uint8_t mcpRead (byte mcpAdress, byte registerAdress);
-void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues);
+// uint8_t mcpRead (byte mcpAdress, byte registerAdress);
+// void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues);
 
 // MENU
 void markMenu(int test);
@@ -107,53 +132,48 @@ void encoderSwitch();
 
 IntervalTimer myTimer;
 
-
+int actStep = 0;
+int N_TRACKS = 8;
+int N_STEPS = 16;
 
 
 void timer() {
-    usbMIDI.sendNoteOn(midiNotes[0][0], 127, midiChannelDisplay);
-    usbMIDI.sendNoteOff(midiNotes[0][0], 127, midiChannelDisplay);
+    // usbMIDI.sendNoteOn(midiNotes[0][0], 127, midiChannelDisplay);
+    // usbMIDI.sendNoteOff(midiNotes[0][0], 127, midiChannelDisplay);
+
+  for (int i=0; i<=N_TRACKS; i++)
+  {
+    if (pattern[i][actStep] == 1) {
+      // usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+      // usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
+    }
+  }
+
+  if (actStep < N_STEPS) actStep++;
+  else actStep = 0;
 }
 
 void setup() {
 
+
+  // --- TIMER INTERRUPT ---
   myTimer.priority(0);
   myTimer.begin(timer, 250000);
 
-  const int ENC_PIN_A = 6;
-  const int ENC_PIN_B = 7;
+  // Wire.begin();
+  //Serial.begin(31250); 
+  Serial.begin(115200); 
 
-  const int MCP_PIN_INT_A = 26;
-  const int MCP_PIN_INT_B = 28;
-
-  const byte MIDI_START = 250;
-  const byte MIDI_CONTINUE = 251;
-  const byte MIDI_STOP = 252;
-  const byte MIDI_CLOCK = 248;
-
-  const int SSD_PIN_RESET = 13;
-
+  // --- DISPLAY ---
   U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
 
-
-
-
-  DisplayMenu& Menu = DisplayMenu::getInstance();
-
-  Menu.someMethod();
-
-  // Menu->setValues(1,2);
-
+  // --- MENU LOGIC ---
   DisplayMenu::MenuSelection menuPosition = DisplayMenu::MenuSelection::SPUR;
 
 
-  // Wire.begin();
-  Serial.begin(31250); 
-
-
-  MCP23017& mcp = MCP23017::getInstance();
-  
-  // /************  MCP23017 Setup  *************/
+  // --- SHIFT REGISTER ---
+  mcp.begin();
+  // register A
   pinMode(MCP_PIN_INT_A, INPUT);
   attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonInterruptA, FALLING);
   mcp.write(MCP23017::ADDRESS_1, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
@@ -169,10 +189,9 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_1, MCP23017::INTCONB,  B11111111);   // Interrupt Control Register: Bedingung mit welcher Interrupt ausgelöst wird, 0=InterruptOnChange, 1=InterruptOnDefValDeviation
   mcp.write(MCP23017::ADDRESS_1, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
-
+  // register B
   pinMode(MCP_PIN_INT_B, INPUT);
   attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonInterruptB, FALLING);
-
   mcp.write(MCP23017::ADDRESS_2, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
   delay(250); 
@@ -187,33 +206,37 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_2, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
-  // /************  Button 1 -STOP- Interrupt  *************/
-  // pinMode(2, INPUT_PULLUP);
-  // attachInterrupt(digitalPinToInterrupt(2), togglePlaybackState, FALLING);  
-  // pinMode(38, OUTPUT); // LED BUTTON 1 -> StopSeq
-  // digitalWrite(38, LOW);
 
-  // pinMode(40, OUTPUT); // LED BUTTON 1 -> StopSeq
-  // digitalWrite(40, LOW);
+  // play button    // usbMIDI.sendNoteOn(midiNotes[0][0], 127, midiChannelDisplay);
+    // usbMIDI.sendNoteOff(midiNotes[0][0], 127, midiChannelDisplay);
+  pinMode(BUTTON_PLAY_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PLAY_PIN), togglePlaybackState, FALLING);  
+  pinMode(BUTTON_PLAY_LED, OUTPUT); // LED BUTTON 1 -> StopSeq
+  digitalWrite(BUTTON_PLAY_LED, LOW);
 
-  // /************  Button 2 -CHANGETRACK- Interrupt  *************/
-  // pinMode(3, INPUT_PULLUP);
-  // attachInterrupt(digitalPinToInterrupt(3), trackInterrupt, FALLING);  
-  // pinMode(39, OUTPUT); // LED Button 2 -> Trackchange
+  // wtf is this?
+  pinMode(40, OUTPUT); // LED BUTTON 1 -> StopSeq
+  digitalWrite(40, LOW);
 
-  // /************  Internal LED Setup  *************/
-  // pinMode(13, OUTPUT);
-  // digitalWrite(13, LOW);
+  // switch track button
+  pinMode(BUTTON_TRACK_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_TRACK_PIN), trackInterrupt, FALLING);  
+  pinMode(BUTTON_TRACK_LED, OUTPUT); // LED Button 2 -> Trackchange
 
-  // /************  Reset PIN Setup  *************/
-  // pinMode(26, INPUT);
+  /************  Internal LED Setup  *************/
+  // wtf is this?
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
 
-  // // usbMIDI.setHandleRealTimeSystem(beatClock);
+  /************  Reset PIN Setup  *************/
+  pinMode(RESET_PIN, INPUT);
+
+  // usbMIDI.setHandleRealTimeSystem(beatClock);
   
-  // pinMode(4, INPUT_PULLUP);
-  // pinMode(5, INPUT);
-  // pinMode(ENC_PIN_A, INPUT);
-  // pinMode(ENC_PIN_B, INPUT); 
+  pinMode(4, INPUT_PULLUP);
+  pinMode(5, INPUT);
+  pinMode(ENC_PIN_A, INPUT);
+  pinMode(ENC_PIN_B, INPUT); 
 
 
   // // assign default color value
@@ -374,77 +397,77 @@ void loop() {
   // rotating = true;  // reset the debouncer
   #pragma endregion
 
-  // LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
-  if (changeTrack == true){
-    digitalWrite(39, HIGH);
-  }
+  // // LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
+  // if (changeTrack == true){
+  //   digitalWrite(BUTTON_TRACK_LED, HIGH);
+  // }
 
-  // ChangeTrack Button2 ist aktiv und ein Auswahlbutton wurde gedrückt. B1-8=> Spurwechselm B9-16=> Patternwechsel
-  if (changeTrack == true && lastButtonPressed != 0)
-  {
-    if (lastButtonPressed <= 8)
-    {
-      seqSpurAktiv = lastButtonPressed-1;
-      midiNoteDisplay = midiNotes[seqSpurAktiv][0];
+  // // ChangeTrack Button2 ist aktiv und ein Auswahlbutton wurde gedrückt. B1-8=> Spurwechselm B9-16=> Patternwechsel
+  // if (changeTrack == true && lastButtonPressed != 0)
+  // {
+  //   if (lastButtonPressed <= 8)
+  //   {
+  //     seqSpurAktiv = lastButtonPressed-1;
+  //     midiNoteDisplay = midiNotes[seqSpurAktiv][0];
 
-      lastTimeTrack = millis();
-      changeTrack = false;
+  //     lastTimeTrack = millis();
+  //     changeTrack = false;
 
-      sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-      digitalWrite(39, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
-      lastButtonPressed = 0;
-    }
+  //     sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+  //     digitalWrite(BUTTON_TRACK_LED, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
+  //     lastButtonPressed = 0;
+  //   }
     
-    else if (lastButtonPressed > 8 && lastButtonPressed <= 16)
-    {
-      loadPreset (lastButtonPressed);  
-      menuActivePattern = lastButtonPressed -8;
+  //   else if (lastButtonPressed > 8 && lastButtonPressed <= 16)
+  //   {
+  //     loadPreset (lastButtonPressed);  
+  //     menuActivePattern = lastButtonPressed -8;
 
-      lastTimeTrack = millis();
-      changeTrack = false;
+  //     lastTimeTrack = millis();
+  //     changeTrack = false;
 
-      sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-      digitalWrite(39, LOW);  
-      lastButtonPressed = 0;
-    }
-  }
+  //     sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
+  //     digitalWrite(39, LOW);  
+  //     lastButtonPressed = 0;
+  //   }
+  // }
 
-    // MCPs müssen ausgelesen werden um die Interrupts zurück zu setzen, ansonsten bleiben MCPs stehen
-    mcpRead(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
-    mcpRead(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
+  //   // MCPs müssen ausgelesen werden um die Interrupts zurück zu setzen, ansonsten bleiben MCPs stehen
+  //   mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
+  //   mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
-    // usbMIDI.read();
+  //   // usbMIDI.read();
 
-    // Hier ist die Zeitschleife
-    if (millis()-lastTime >= tempo  && startStopInterrupt == false && unknownFlag == true)
-    {    
-      // LEDs von der aktuell angewählten Spur werden angezeigt
-      seqTrackToLED(seqSpurAktiv);
+  //   // Hier ist die Zeitschleife
+  //   if (millis()-lastTime >= tempo  && startStopInterrupt == false && unknownFlag == true)
+  //   {    
+  //     // LEDs von der aktuell angewählten Spur werden angezeigt
+  //     seqTrackToLED(seqSpurAktiv);
 
-      // Lauflichteffekt
-      seqLauflicht(seqStepAktuell);
+  //     // Lauflichteffekt
+  //     seqLauflicht(seqStepAktuell);
 
-      // Midi Noten raus schicken per USB
-      sendMidiNotes(seqSpurAktiv, seqStepAktuell);
+  //     // Midi Noten raus schicken per USB
+  //     //sendMidiNotes(seqSpurAktiv, seqStepAktuell);
 
-      // Schritt hochzählen
-      seqStepAktuell = seqStepAktuell + 1;
-      if (seqStepAktuell == 16){ seqStepAktuell = 0;}
+  //     // Schritt hochzählen
+  //     seqStepAktuell = seqStepAktuell + 1;
+  //     if (seqStepAktuell == 16){ seqStepAktuell = 0;}
 
-      // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
-      lastTime = millis();
-    }
+  //     // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
+  //     lastTime = millis();
+  //   }
 
-    if (buttonPressed != 0 && sendOkay == true)
-    {
-      buttonsAbfragen(buttonPressed);
-      buttonPressed = 0;    
-    }
+  //   if (buttonPressed != 0 && sendOkay == true)
+  //   {
+  //     buttonsAbfragen(buttonPressed);
+  //     buttonPressed = 0;    
+  //   }
 
-    if (digitalRead(26) == 1 && digitalRead(28) == 1)
-    {
-      sendOkay = true;
-    }
+  //   if (digitalRead(MCP_PIN_INT_A) == 1 && digitalRead(MCP_PIN_INT_B) == 1)
+  //   {
+  //     sendOkay = true;
+  //   }
 }
 
 
@@ -459,21 +482,21 @@ void encoderSwitch(){
   }
 }
 
-void sendMidiNotes(byte spur, byte schritt)
+void sendMidiNotes(byte track, byte step)
 {
   for (int i=0; i<=7; i++)
   {
-    if (pattern[i][schritt] == 1) 
+    if (pattern[i][step] == 1) 
     {
-    usbMIDI.sendNoteOn(midiNotes[i][0], velocitySpeicher[i][schritt], midiChannelDisplay);
-    usbMIDI.sendNoteOff(midiNotes[i][0], velocitySpeicher[i][schritt], midiChannelDisplay);
+    // usbMIDI.sendNoteOn(midiNotes[i][0], velocitySpeicher[i][step], midiChannelDisplay);
+    // usbMIDI.sendNoteOff(midiNotes[i][0], velocitySpeicher[i][step], midiChannelDisplay);
 
     }
   }
 }
 
-void loadPreset (int whichPreset){
-  switch (whichPreset)
+void loadPreset (int nr){
+  switch (nr)
     {
     case 9:
       for (int i=0; i<8; i++){
@@ -559,21 +582,21 @@ void togglePlaybackState(){
   {
     //startStopInterrupt = true;
     startStopInterrupt = !startStopInterrupt;
-    digitalWrite(38, startStopInterrupt);
+    digitalWrite(BUTTON_PLAY_LED, startStopInterrupt);
     lastTimeStartStop = millis();
   }
 }
 
 // Buttons werden abgefragt
-void buttonsAbfragen(byte woGedrueckt) 
+void buttonsAbfragen(byte identifier) 
 {
   byte statusICR = 0;
   byte mcpWahl = 0;
 
-  if (woGedrueckt == 1 ) {  mcpWahl = MCP23017::ADDRESS_1; }
-  if (woGedrueckt == 2 ) {  mcpWahl = MCP23017::ADDRESS_2; }
+  if (identifier == 1 ) {  mcpWahl = MCP23017::ADDRESS_1; }
+  if (identifier == 2 ) {  mcpWahl = MCP23017::ADDRESS_2; }
 
-  statusICR = mcpRead(mcpWahl,MCP23017::INTFB); 
+  statusICR = mcp.read(mcpWahl,MCP23017::INTFB); 
   lastButtonPressed = statusICR;
 
   if (statusICR != 0) { seqNoteSchreiben(statusICR, mcpWahl); }
@@ -659,7 +682,7 @@ void digitalWriteMCP(byte stepNummer, bool anOderAus){
   if ( stepNummer >= 8){ mcpWahl = MCP23017::ADDRESS_2; }
   else { mcpWahl = MCP23017::ADDRESS_1; }
   
-  statusGP = mcpRead(mcpWahl, MCP23017::GPIOA);
+  statusGP = mcp.read(mcpWahl, MCP23017::GPIOA);
 
   if (stepNummer >= 8) { pinNumber = stepNummer-8; }
   else { pinNumber = stepNummer;}
@@ -669,7 +692,7 @@ void digitalWriteMCP(byte stepNummer, bool anOderAus){
   else if (anOderAus == 1) { statusGP |= (B00000001 << (pinNumber));
   }
 
-  mcpWrite(mcpWahl, MCP23017::GPIOA, statusGP);
+  mcp.write(mcpWahl, MCP23017::GPIOA, statusGP);
 }
 
 
@@ -703,20 +726,22 @@ void digitalWriteMCP(byte stepNummer, bool anOderAus){
 // }
 
 
-uint8_t mcpRead (byte mcpAdress, byte registerAdress){
-  Wire.beginTransmission(mcpAdress);
-  Wire.write(registerAdress);
-  Wire.endTransmission();
-  Wire.requestFrom(mcpAdress, 1);
-  return Wire.read();
-}
+#pragma region MOVED TO MCP LIB
+// uint8_t mcpRead (byte mcpAdress, byte registerAdress){
+//   Wire.beginTransmission(mcpAdress);
+//   Wire.write(registerAdress);
+//   Wire.endTransmission();
+//   Wire.requestFrom(mcpAdress, 1);
+//   return Wire.read();
+// }
 
-void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues){
-  Wire.beginTransmission(mcpAdress);
-  Wire.write(registerAdress); 
-  Wire.write(registerValues); 
-  Wire.endTransmission();
-}
+// void mcpWrite (byte mcpAdress, byte registerAdress, byte registerValues){
+//   Wire.beginTransmission(mcpAdress);
+//   Wire.write(registerAdress); 
+//   Wire.write(registerValues); 
+//   Wire.endTransmission();
+// }
+#pragma endregion
 
 
 // void draw(void) {

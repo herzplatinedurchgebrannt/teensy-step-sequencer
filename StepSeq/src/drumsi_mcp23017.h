@@ -45,6 +45,8 @@ public:
 
     // void setup(int PIN_INT_A, int PIN_INT_B);
 
+    void begin();
+
     void write(byte mcpAdress, byte registerAdress, byte registerValues);
 
     // static void buttonInterrupt0();

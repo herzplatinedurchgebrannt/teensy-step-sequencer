@@ -24,14 +24,18 @@ uint8_t MCP23017::read (byte mcpAdress, byte registerAdress){
   return Wire.read();
 }
 
-void MCP23017::write (byte mcpAdress, byte registerAdress, byte registerValues){
-  Wire.beginTransmission(mcpAdress);
-  Wire.write(registerAdress); 
-  Wire.write(registerValues); 
-  Wire.endTransmission();
+void MCP23017::begin()
+{
+  Wire.begin();
 }
 
-
+void MCP23017::write(byte mcpAdress, byte registerAdress, byte registerValues)
+{
+    Wire.beginTransmission(mcpAdress);
+    Wire.write(registerAdress);
+    Wire.write(registerValues);
+    Wire.endTransmission();
+}
 
 // void MCP23017::setup(int PIN_INT_A, int PIN_INT_B){
 //   pinMode(PIN_INT_A, INPUT);
