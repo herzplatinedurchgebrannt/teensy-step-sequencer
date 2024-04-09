@@ -31,7 +31,7 @@ int lastReportedPos = 1;   // change management
 // NEW STUFF
 IntervalTimer playbackTimer;
 ShiftButtonState buttonState = off;
-PlayerState playerState = stopped;
+PlayerState playerState = playing;
 
 float tempoInMs = 250000;
 
@@ -40,8 +40,8 @@ int actStep = 0;
 int N_TRACKS = 8;
 int N_STEPS = 16;
 
-bool mcpAPressed = false;
-bool mcpBPressed = false;
+volatile bool mcpAPressed = false;
+volatile bool mcpBPressed = false;
 
 // OLD STUFF
 uint8_t midiCounter = 0;
@@ -60,6 +60,8 @@ unsigned long mcpBStamp = 0;
 unsigned long pauseStamp = 0;
 unsigned long shiftAStamp = 0;
 unsigned long shiftBStamp = 0;
+
+unsigned long testStamp = 0;
 
 uint8_t seqSpurAktiv = 0;
 uint8_t seqStepAktuell = 0;
@@ -173,8 +175,48 @@ void loop() {
   mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
   mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
+  if (mcpAPressed){
+    if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
+    {
+      Serial.println("ENTER MCA");
 
+      //mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
+
+      int buttonId = getPressedButtonId(1);
+
+      // updateSequencer(buttonId);
+
+      mcpAPressed = false;
+
+      Serial.println("leave A");
+    }
+  }
+
+  if (mcpBPressed){
+    if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50) 
+    {
+      Serial.println("ENTER MCB");  
+
+      //mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
+
+      int buttonId = getPressedButtonId(2);
+
+      // updateSequencer(buttonId);
+
+      mcpBPressed = false;
+
+      Serial.println("leave B");
+    }
+  }
+
+  if (millis() - testStamp > 100){
+
+  }
   
+
+
+
+
   // // handle pressed button event of register A 
   //if ((mcpAPressed == true) && (millis() - mcpAStamp > 500)){
 
@@ -375,62 +417,68 @@ void encoderSwitch(){
 
 void buttonPressedMcpA()
 {
-  if (millis() - mcpAStamp < 500 && mcpAPressed == false) return;
+  if (millis() - mcpAStamp < 50 || mcpAPressed == true) return;
 
   Serial.println("int a");
 
   mcpAStamp = millis();
   mcpAPressed = true;
 
-  int buttonId = getPressedButtonId(1);
+  //mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
 
-  mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
+  // int buttonId = getPressedButtonId(1);
 
-  if (buttonId == 0) return;
+  // if (buttonId == 0) return;
 
-  updateSequencer(buttonId); 
-
-  mcpAPressed = false;
+  // updateSequencer(buttonId);
 }
 
 void buttonPressedMcpB()
 {
-  if (millis() - mcpBStamp < 500 && mcpBPressed == false) return;
+  if (millis() - mcpBStamp < 50 || mcpBPressed == true) return;
 
   Serial.println("int b");
 
   mcpBStamp = millis();
   mcpBPressed = true;
 
-  int buttonId = getPressedButtonId(2);
+  //mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
-  mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
+  // int buttonId = getPressedButtonId(2);
 
-  if (buttonId == 0) return;
+  // if (buttonId == 0) return;
 
-  updateSequencer(buttonId); 
-
-  mcpBPressed = false;
+  // updateSequencer(buttonId); 
 }
 
 int getPressedButtonId(int mcpId)
 {
-  uint8_t buttonId = 0;
-  uint8_t statusICR = 0;
+  Serial.println("get pressed button");
+
+  volatile uint8_t buttonId = 0;
+  volatile uint8_t statusICR = 0;
   int offset = 0;
 
   switch (mcpId)
   {
     case 1:
       statusICR = mcp.read(MCP23017::ADDRESS_1,MCP23017::INTFB);
+      Serial.println("STATUS ICR");
+      Serial.println(statusICR);
       break;
     case 2:
       statusICR = mcp.read(MCP23017::ADDRESS_2,MCP23017::INTFB);
+      Serial.println("STATUS ICR");
+      Serial.println(statusICR);
       offset = 8;
       break;
     default:
       return 1;
   }
+
+  Serial.println("while");
+
+  int i = 0;
   
   // Serial.println(statusICR);
   // *** TO DO ***
@@ -438,6 +486,12 @@ int getPressedButtonId(int mcpId)
   while (bitRead(statusICR, buttonId) == 0) 
   {
     buttonId++;
+    // Serial.println(i);
+    // i++;
+
+    // if (i == 8){
+    //   break;
+    // }
   }
 
   Serial.println("sequencer button:");
@@ -445,6 +499,66 @@ int getPressedButtonId(int mcpId)
 
   return buttonId + offset;
 }
+
+
+
+
+
+// void getPressedButtonId(byte woGedrueckt) 
+// {
+//   byte statusICR = 0;
+//   byte mcpWahl = 0;
+
+//   if (woGedrueckt == 1 ) {  mcpWahl = MCP_ADDRESS_1; }
+//   if (woGedrueckt == 2 ) {  mcpWahl = MCP_ADDRESS_2; }
+
+//   statusICR = mcpRead(mcpWahl,INTFB); 
+//   lastButtonPressed = statusICR;
+
+//   if (statusICR != 0) { seqNoteSchreiben(statusICR, mcpWahl); }
+// }
+
+// // Schreibt Werte in den SeqSpeicher
+// void seqNoteSchreiben(byte noteInBits, int mcpNummer)
+// {
+//   byte x = 0;
+
+//   if (mcpNummer == 0x21)
+//   {
+//     mcpNummer = 8;
+//   }
+//   else 
+//   {
+//     mcpNummer = 0;
+//   }
+
+//   while ( bitRead(noteInBits, x) == 0) 
+//   {
+//     x++;
+//   }
+
+//   lastButtonPressed = x + 1 + mcpNummer;
+
+//   if(changeTrack == false)
+//   {
+//     if (seqSpeicher[seqSpurAktiv][x + mcpNummer] ==  1) 
+//     { 
+//       seqSpeicher[seqSpurAktiv][x + mcpNummer] = 0; 
+//       sendOkay = false;
+//       Serial.println("Note 0");
+//       lastButtonPressed = 0;
+//     }
+//     else 
+//     {
+//       seqSpeicher[seqSpurAktiv][x + mcpNummer] = 1; 
+//       velocitySpeicher[seqSpurAktiv][x + mcpNummer] = midiVelocityDisplay;
+//       sendOkay = false;
+//       Serial.println("Note 1");
+//       lastButtonPressed = 0;
+//     }
+//   }
+// }
+
 
 
 
