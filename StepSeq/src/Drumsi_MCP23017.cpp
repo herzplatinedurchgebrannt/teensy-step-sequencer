@@ -1,6 +1,6 @@
 // myFunctions.cpp
 
-#include "drumsi_mcp23017.h"
+#include "Drumsi_MCP23017.h"
 
 MCP23017& MCP23017::getInstance() {
   static MCP23017 instance;
