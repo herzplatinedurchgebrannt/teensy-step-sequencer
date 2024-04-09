@@ -40,6 +40,9 @@ int actStep = 0;
 int N_TRACKS = 8;
 int N_STEPS = 16;
 
+bool mcpAPressed = false;
+bool mcpBPressed = false;
+
 // OLD STUFF
 byte midiCounter = 0;
 float midiLastStamp = 0;
@@ -94,12 +97,13 @@ void setup() {
   Serial.begin(115200); 
 
   // menu
-  DisplayMenu::MenuSelection menuPosition = DisplayMenu::MenuSelection::SPUR;
+  //DisplayMenu::MenuSelection menuPosition = DisplayMenu::MenuSelection::SPUR;
 
   // i2c shift registers A & B
   mcp.begin();
   pinMode(MCP_PIN_INT_A, INPUT);
-  attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonPressedMcpA, FALLING);
+  //attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonPressedMcpA, FALLING);
+  attachInterrupt(MCP_PIN_INT_A, buttonPressedMcpA, FALLING);
   mcp.write(MCP23017::ADDRESS_1, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
   delay(250); 
@@ -114,7 +118,8 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_1, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
   pinMode(MCP_PIN_INT_B, INPUT);
-  attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonPressedMcpB, FALLING);
+  //attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonPressedMcpB, FALLING);
+  attachInterrupt(MCP_PIN_INT_B, buttonPressedMcpB, FALLING);
   mcp.write(MCP23017::ADDRESS_2, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
   delay(250); 
@@ -151,28 +156,13 @@ void setup() {
 
   /************  Reset PIN Setup  *************/
   pinMode(RESET_PIN, INPUT);
-
-  // usbMIDI.setHandleRealTimeSystem(beatClock);
-  
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT);
   pinMode(ENC_PIN_A, INPUT);
   pinMode(ENC_PIN_B, INPUT); 
 
-
-  // // assign default color value
-  // if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
-  //   u8g.setColorIndex(255); // white
-  // } 
-  // else if ( u8g.getMode() == U8G_MODE_GRAY2BIT ) {
-  // u8g.setColorIndex(3); // max intensity
-  // } 
-  // else if ( u8g.getMode() == U8G_MODE_BW ) {
-  //   u8g.setColorIndex(1); // pixel on
-  // }
-  // else if ( u8g.getMode() == U8G_MODE_HICOLOR ) {
-  //   u8g.setHiColorByRGB(255,255,255);
-  // }
+  writeStepLed(4, true);
+  writeStepLed(5, true);
 
   playbackTimer.priority(20);
   playbackTimer.begin(playback, tempoInMs);
@@ -181,145 +171,44 @@ void setup() {
 
 
 void loop() {
+
+  // read frequently to unlock interrupts
+  mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
+  mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
+
+
   
-  #pragma region DISPLAY
-  // // picture loop
-  // u8g.firstPage(); 
-  // do 
-  // {
-  //   draw(); 
-  //   if (encButtonIsActive == true){
-  //     markMenu(menuActiveSelection);
+  // // handle pressed button event of register A 
+  //if ((mcpAPressed == true) && (millis() - mcpAStamp > 500)){
+
+    // mcpAStamp = millis();
+    // Serial.println("MCP A");
+    // int buttonId = getPressedButtonId(1);
+    // Serial.println(buttonId);
+
+    // if (buttonId != 0) 
+    // { 
+    //   updateSequencer(buttonId); 
+    // }
+    // attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonPressedMcpA, FALLING);
+    // mcpAPressed = false;
+  //}
+
+  // // handle pressed button event of register B  
+  // if ((mcpBPressed == true) && (millis() - mcpBStamp > 500)){
+
+  //   mcpBStamp = millis();
+  //   Serial.println("MCP B");
+  //   int buttonId = getPressedButtonId(2);
+
+  //   if (buttonId != 0) 
+  //   { 
+  //     updateSequencer(buttonId); 
   //   }
-  //   else
-  //   {
-  //     if (millis() - menuInvertedLastStamp > 500)
-  //     {
-  //       markMenu(menuActiveSelection);
-  //     }
-  //   }
-
-    
-  // }
-  // while (u8g.nextPage());
-
-  // encValue = digitalRead(6);
-
-  // if ((encValue == LOW) && (encValueOld == HIGH)) {
-  //   lastReportedPos = encoderPos;
-
-  //   if (digitalRead(7) == HIGH) {
-  //     encoderPos++;
-  //   }
-  //   else {
-  //     encoderPos--;
-  //   }Serial.println(encoderPos);
-  // } 
-  // encValueOld = encValue;
-
-  // if (millis() - encButtonLastStamp > 300 && digitalRead(5) == LOW)
-  // {
-  //   encButtonIsActive = !encButtonIsActive;
-  //   digitalWrite(13, encButtonIsActive);
-  //   encButtonLastStamp = millis();
+  //   attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonPressedMcpB, FALLING);
+  //   mcpAPressed = false;
   // }
 
-
-  // if (displayValueChange == true) { displayValueChange = false; } 
-
-  // // Display aktualisieren
-  // if (encButtonIsActive == true )
-  // {  
-  //   if (encoderPos != lastReportedPos)
-  //   {
-  //     if (encoderPos-lastReportedPos < 0)
-  //     {
-  //     menuActiveSelection = menuActiveSelection - 1;
-  //     if (menuActiveSelection <= 0) { menuActiveSelection = 6; }
-  //     }
-  //     else 
-  //     {
-  //     menuActiveSelection = menuActiveSelection + 1;
-  //     if (menuActiveSelection > 6) { menuActiveSelection = 1; }
-  //     } 
-  //   }
-  //   lastReportedPos = encoderPos;
-  // }  
-  // // Display aktualisieren, Button nicht gedrückt, Parameter lassen sich ändern
-  // else if ((encButtonIsActive == false  && displayValueChange == true) || (encButtonIsActive == false  && millis() - menuInvertedLastStamp >= 1000))
-  // {
-  //   if (invertMenu == true)
-  //   {
-  //     // unmark Menu BÖSE
-  //     //markMenuInt(0);
-  //   }
-  //   else
-  //   { // BÖSE
-  //     //markMenuInt(menuAktuell);
-  //       markMenu(menuActiveSelection);
-  //   }
-  //   // Display invertieren nach 500ms
-  //   if (millis() - menuInvertedLastStamp >= 500)
-  //   {
-  //     invertMenu = !invertMenu;
-  //     menuInvertedLastStamp = millis();
-  //   }
-  //   displayValueChange = false;
-  // }
-
-  // // Hier werden die Parameter der einzelnen Funktionen verändert
-  // if (lastReportedPos != encoderPos && encButtonIsActive == false)
-  // {
-  //   switch (menuActiveSelection)
-  //       {
-  //         case 1:
-  //           seqSpurAktiv = seqSpurAktiv + encoderPos - lastReportedPos;
-  //           if (seqSpurAktiv > 200) { seqSpurAktiv = 0; }
-  //           else if (seqSpurAktiv > 7 && seqSpurAktiv <= 200) { seqSpurAktiv = 7; }
-  //           midiNoteDisplay = midiNotes[seqSpurAktiv][0];
-  //           displayValueChange = true;
-  //           break;
-  //         case 2:
-  //           menuActivePattern = menuActivePattern + encoderPos - lastReportedPos;
-  //           if (menuActivePattern < 1){ menuActivePattern = 1; }
-  //           else if (menuActivePattern > 8){ menuActivePattern = 8; }
-  //           loadPreset(menuActivePattern+8);
-  //           displayValueChange = true;
-  //           break;
-  //         case 3:
-  //           bpm = bpm + encoderPos - lastReportedPos;
-  //           if (bpm < 60) { bpm = 60; }
-  //           else if (bpm > 240) { bpm = 240; }
-  //           tempo = (1000.000 / (bpm / 60 * noteLength)) - offset;
-  //           displayValueChange = true;          
-  //           break;
-  //         case 4:
-  //           midiChannelDisplay = midiChannelDisplay + encoderPos - lastReportedPos;
-  //           if (midiChannelDisplay <= 0) { midiChannelDisplay = 1; }
-  //           else if (midiChannelDisplay > 16) { midiChannelDisplay = 16; }
-  //           displayValueChange = true;
-  //           break;
-  //         case 5:
-  //           midiNoteDisplay = midiNoteDisplay + encoderPos - lastReportedPos;
-  //           if (midiNoteDisplay < 0) { midiNoteDisplay = 0; }
-  //           else if (midiNoteDisplay > 127) { midiNoteDisplay = 127; }
-  //           midiNotes[seqSpurAktiv][0] = midiNoteDisplay;
-  //           displayValueChange = true;
-  //           break;
-  //         case 6:
-  //           midiVelocityDisplay = midiVelocityDisplay + encoderPos - lastReportedPos;
-  //           if (midiVelocityDisplay < 0) { midiVelocityDisplay = 127; }
-  //           else if (midiVelocityDisplay > 127) { midiVelocityDisplay = 0; }
-  //           displayValueChange = true;
-  //           break;
-  //         default:
-  //           break;
-  //       }   
-  //       lastReportedPos = encoderPos;
-  // }
-
-  // rotating = true;  // reset the debouncer
-  #pragma endregion
 
   // // LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
   // if (changeTrack == true){
@@ -356,7 +245,7 @@ void loop() {
   //   }
   // }
 
-  //   // MCPs müssen ausgelesen werden um die Interrupts zurück zu setzen, ansontogglePlaybackState
+
 
   //   // usbMIDI.read();
 
@@ -402,21 +291,44 @@ void loop() {
   stopping playback
 */
 void playback(){
+
+  // if (actStep < 8){
+  //   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPIOA, actStep);
+  // }
+  // else{
+  //   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA, actStep);
+  // }
+  
+
   // update LEDs
   for (int i = 0; i < N_STEPS; i++)
   {
     // read pattern
     if (DUMMY_PATTERN_A[2][i] == 1){
+
+      
       // toggle current step
       // for running led FX
-      if (i == actStep) writeStepLed(i,0);
-      else writeStepLed(i,1);
+      if (i == actStep) {
+        // Serial.println("WRITE LED OFF");
+        writeStepLed(i,0);}
+
+      else {
+        writeStepLed(i,1);
+        //Serial.println("WRITE LED ON");
+      } 
     }
     else{
       // toggle current step
       // for running led FX
-      if (i == actStep) writeStepLed(i,1);
-      else writeStepLed(i,0);
+      if (i == actStep) {
+        //Serial.println("WRITE LED ON");
+        writeStepLed(i,1);
+      }
+      else {
+        //Serial.println("WRITE LED OFF");
+        writeStepLed(i,0);
+        }
     }
   }
 
@@ -426,7 +338,7 @@ void playback(){
     if (DUMMY_PATTERN_A[i][actStep] == 1) {
       usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
       usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
-      // Serial.println(actStep);
+      //Serial.println(actStep);
     }
   }
 
@@ -442,14 +354,17 @@ void pauseButtonPressed(){
   pauseStamp = millis();
 
   if (playerState == stopped){
+    actStep = 0;
     playbackTimer.begin(playback, tempoInMs);
-    digitalWrite(BUTTON_PLAY_LED, true);
+    digitalWrite(BUTTON_PLAY_LED, false);
     playerState = playing;
+    Serial.println("START");
   } 
   else{
     playbackTimer.end();
-    digitalWrite(BUTTON_PLAY_LED, false);
+    digitalWrite(BUTTON_PLAY_LED, true);
     playerState = stopped;
+    Serial.println("STOP");
   }
 }
 
@@ -473,31 +388,55 @@ void encoderSwitch(){
 
 void buttonPressedMcpA()
 {
-  if (millis()-mcpAStamp >= 50)
-  {
-    mcpAStamp = millis();
+  if (millis() - mcpAStamp < 500 && mcpAPressed == false) return;
 
-    //mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
-    int buttonId = getPressedButtonId(1);
+  //detachInterrupt(MCP_PIN_INT_A);
 
-    if (buttonId != 0) 
-    { 
-      updateSequencer(buttonId); 
-    }
-  }
+  Serial.println("int a");
+
+  mcpAStamp = millis();
+  mcpAPressed = true;
+
+  int buttonId = getPressedButtonId(1);
+
+  mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
+
+  //attachInterrupt(MCP_PIN_INT_A, buttonPressedMcpA, FALLING);
+
+
+  if (buttonId == 0) return;
+
+  updateSequencer(buttonId); 
+
+  //attachInterrupt(MCP_PIN_INT_A, buttonPressedMcpA, FALLING);
+  mcpAPressed = false;
+
+
 }
 
 void buttonPressedMcpB()
 {
-  if (millis()-mcpBStamp >= 50)
-  {
-    mcpBStamp = millis();
+  if (millis() - mcpBStamp < 500 && mcpBPressed == false) return;
 
-    //mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
-    int buttonId = getPressedButtonId(2);
+  //detachInterrupt(MCP_PIN_INT_B);
 
-    if (buttonId != 0) { updateSequencer(buttonId); }
-  }
+  Serial.println("int b");
+
+  mcpBStamp = millis();
+  mcpBPressed = true;
+
+  int buttonId = getPressedButtonId(2);
+
+  mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
+
+  //attachInterrupt(MCP_PIN_INT_A, buttonPressedMcpA, FALLING);
+
+  if (buttonId == 0) return;
+
+  updateSequencer(buttonId); 
+
+
+  mcpBPressed = false;
 }
 
 int getPressedButtonId(int mcpId)
@@ -505,6 +444,8 @@ int getPressedButtonId(int mcpId)
   byte buttonId = 0;
   byte statusICR = 0;
   int offset = 0;
+
+  // noInterrupts();
 
   switch (mcpId)
   {
@@ -519,6 +460,9 @@ int getPressedButtonId(int mcpId)
       return 1;
   }
 
+  // interrupts();
+
+  // Serial.println(statusICR);
   // *** TO DO ***
   // replace with bitshift
   while (bitRead(statusICR, buttonId) == 0) 
@@ -566,7 +510,7 @@ void writeStepLed(byte stepNummer, bool state){
 
   if ( stepNummer >= 8){ address = MCP23017::ADDRESS_2; }
   else { address = MCP23017::ADDRESS_1; }
-  
+
   status = mcp.read(address, MCP23017::GPIOA);
 
   if (stepNummer >= 8) { pin = stepNummer-8; }
@@ -574,84 +518,12 @@ void writeStepLed(byte stepNummer, bool state){
 
   if (state == 0) { status &= ~(B00000001 << (pin));
   }
-  else if (state == 1) { status |= (B00000001 << (pin));
+  else { status |= (B00000001 << (pin));
   }
 
   mcp.write(address, MCP23017::GPIOA, status);
 }
 
-
-
-
-
-
-
-
-
-// void loadPreset (int nr){
-//   switch (nr)
-//     {
-//     case 9:
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_A[i][j];
-//           velocitySpeicher[i][j] = velocityP1[i][j];
-//         }   
-//       }
-//       break;
-//     case 10:
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_B[i][j];
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_C[i][j];
-//           velocitySpeicher[i][j] = velocityP3[i][j];
-//         }   
-//       }
-//       break;
-//     case 12:
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_D[i][j];
-//           velocitySpeicher[i][j] = velocityP4[i][j];
-//         }   
-//       }
-//       break;
-//     case 13:
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_E[i][j];
-//           velocitySpeicher[i][j] = velocityP5[i][j];
-//         }   
-//       }
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_F[i][j];
-//           velocitySpeicher[i][j] = velocityP6[i][j];
-//         }   
-//       }
-//       break;
-//     case 15:
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_G[i][j];
-//           velocitySpeicher[i][j] = velocityP7[i][j];
-//         }   
-//       }
-//       break;
-//     case 16:
-//       for (int i=0; i<8; i++){
-//         for (int j=0; j<16; j++){
-//           pattern[i][j] = DUMMY_PATTERN_H[i][j];
-//           velocitySpeicher[i][j] = velocityP8[i][j];
-//         }   
-//       }
-//       break;
-//     default:
-//       break;
-//     }
-// }
 
 // Interrupt, welcher die aktuelle Spur ändert
 void trackInterrupt(){
@@ -661,169 +533,3 @@ void trackInterrupt(){
     lastTimeTrack = millis();
   }
 }
-
-
-
-
-
-
-
-
-// void beatClock(byte realtimebyte) {
-
-//   if(realtimebyte == MIDI_START) { midiCounter = 0; midiLastStamp = millis(); }
-//   if(realtimebyte == MIDI_CONTINUE) { midiLastStamp = millis(); }
-//   if(realtimebyte == MIDI_STOP) { digitalWrite(13, LOW); }
-  
-//   if(realtimebyte == MIDI_CLOCK) {
-    
-//     midiCounter++;
-//     if (midiCounter == 97) {midiCounter = 1;}
-//     if(midiCounter == 1 || midiCounter == 24 || midiCounter == 48 || midiCounter == 72) { 
-//       digitalWrite(13, HIGH);
-//     } 
-//     if(midiCounter == 5 || midiCounter == 25 || midiCounter == 49 || midiCounter == 73) { 
-//       digitalWrite(13, LOW);
-//     }
-//   }
-
-//   if (midiCounter == 24 || midiCounter == 48 || midiCounter == 72 || midiCounter == 96 ) {
-//     bpm = round((60000 / (millis() - midiLastStamp)));
-
-//     changeTempo = true;
-
-//     Serial.print(bpm);
-//     Serial.println(" BPM");
-//     midiLastStamp = millis();
-//   }
-// }
-
-
-
-// void draw(void) {
-//   //Presetname
-//   u8g.setColorIndex(1);
-//   u8g.drawBox(0,0,128,16);
-//   u8g.setColorIndex(0);
-//   u8g.setFont(u8g_font_helvB10);
-//   u8g.drawStr( 2, 13, "DRUMSI");
-//   //u8g.drawBitmapP( 116, 4, 1, 8, MidiIn);
-//   u8g.setColorIndex(1);
-
-
-//   //Parameternamen
-//   u8g.setFont(u8g_font_profont12);
-//   u8g.drawStr( 0, 28, "Trck");
-//   u8g.setPrintPos(38, 28); 
-//   u8g.print(spurNamen[seqSpurAktiv]);
-
-//   u8g.drawStr( 0, 45, "Patt"); //Presetname
-//   u8g.setColorIndex(1);
-//   u8g.drawBox(0,0,128,16);
-//   u8g.setColorIndex(0);
-//   u8g.setFont(u8g_font_helvB10);
-//   u8g.drawStr( 2, 13, "DRUMSI");
-//   //u8g.drawBitmapP( 116, 4, 1, 8, MidiIn);
-//   u8g.setColorIndex(1);
-
-//   //Parameternamen
-//   u8g.setFont(u8g_font_profont12);
-//   u8g.drawStr( 0, 28, "Trck");
-//   u8g.setPrintPos(38, 28); 
-//   u8g.print(spurNamen[seqSpurAktiv]);
-
-//   u8g.drawStr( 0, 45, "Patt");
-//   u8g.setPrintPos(38, 45); 
-//   u8g.print(menuActivePattern);
-
-//   //int bpmCut = bpm;
-
-//   u8g.drawStr( 0, 62, "BPM");
-//   u8g.setPrintPos(38, 62); 
-//   u8g.print(bpm);
-
-//   u8g.drawStr( 72, 28, "Chan");
-//   u8g.setPrintPos(110, 28); 
-//   u8g.print(midiChannelDisplay);
-
-//   u8g.drawStr( 72, 45, "Note");
-//   u8g.setPrintPos(110, 45); 
-//   u8g.print(midiNoteDisplay);
-
-//   u8g.drawStr( 72, 62, "Velo");
-//   u8g.setPrintPos(110, 62); 
-//   u8g.print(midiVelocityDisplay);
-
-//   //Menü
-//   u8g.setColorIndex(1);
-//   u8g.setColorIndex(0);
-//   u8g.setColorIndex(1);
-
-//   u8g.drawStr( 0, 62, "BPM");
-//   u8g.setPrintPos(38, 62); 
-//   u8g.print(bpm);
-
-//   u8g.drawStr( 72, 28, "Chan");
-//   u8g.setPrintPos(110, 28); 
-//   u8g.print(midiChannelDisplay);
-
-//   u8g.drawStr( 72, 45, "Note");
-//   u8g.setPrintPos(110, 45); 
-//   u8g.print(midiNoteDisplay);
-
-//   u8g.drawStr( 72, 62, "Velo");
-//   u8g.setPrintPos(110, 62); 
-//   u8g.print(midiVelocityDisplay);
-
-//   //Menü
-//   u8g.setColorIndex(1);
-//   u8g.setColorIndex(0);
-//   u8g.setColorIndex(1);
-// }
-
-
-// void markMenu(int test){
-//   u8g.setFont(u8g_font_profont12);
-//   u8g.setColorIndex(1);
-
-//   switch (test) {
-//     case 1:
-//       u8g.drawBox(36,17,32,14);
-//       u8g.setColorIndex(0);
-//       u8g.setPrintPos(38, 28); 
-//       u8g.print(spurNamen[seqSpurAktiv]);
-//       break; 
-//     case 2:
-//       u8g.drawBox(36,34,32,14);
-//       u8g.setColorIndex(0);
-//       u8g.setPrintPos(38, 45); 
-//       u8g.print(menuActivePattern);
-//       break;
-//     case 3:
-//       u8g.drawBox(36,51,32,14);
-//       u8g.setColorIndex(0);
-//       u8g.setPrintPos(38, 62); 
-//       u8g.print(bpm);
-//       break;
-//     case 4:
-//       u8g.drawBox(98,17,32,14);
-//       u8g.setColorIndex(0);
-//       u8g.setPrintPos(110, 28); 
-//       u8g.print(midiChannelDisplay);
-//       break;
-//     case 5:
-//       u8g.drawBox(98,34,32,14);
-//       u8g.setColorIndex(0);
-//       u8g.setPrintPos(110, 45); 
-//       u8g.print(midiNoteDisplay);
-//       break;
-//     case 6:
-//       u8g.drawBox(98,51,32,14);
-//       u8g.setColorIndex(0);
-//       u8g.setPrintPos(110, 62); 
-//       u8g.print(midiVelocityDisplay);
-//       break;
-//     default:
-//       break;
-//   }
-// }

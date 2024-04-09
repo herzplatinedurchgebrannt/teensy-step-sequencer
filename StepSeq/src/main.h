@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 
-
 // pin configuration
 const int ENC_PIN_A = 6;
 const int ENC_PIN_B = 7;

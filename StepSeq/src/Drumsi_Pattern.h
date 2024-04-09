@@ -1,3 +1,4 @@
+#include <string>
 
 
 
@@ -11,7 +12,7 @@ int midiNotes [8][3] = {  {36, 127, 1}, //Kick
                           {35, 127, 1}  //Crash
                           };
 
-char* spurNamen [8] = { "Kick", 
+String spurNamen [8] = { "Kick", 
                          "Snare",
                          "Hihat",
                          "Crash",
