@@ -56,4 +56,8 @@ void encoderSwitch();
 
 int getPressedButtonId(int identifier);
 
+
+void buttonsAbfragen(byte woGedrueckt);
+void seqNoteSchreiben(byte noteInBits, int mcpNummer);
+
 #endif

@@ -175,39 +175,52 @@ void loop() {
   mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
   mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
+
   if (mcpAPressed){
-    if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
-    {
-      Serial.println("ENTER MCA");
+    buttonsAbfragen(1);
 
-      //mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
-
-      int buttonId = getPressedButtonId(1);
-
-      // updateSequencer(buttonId);
-
-      mcpAPressed = false;
-
-      Serial.println("leave A");
-    }
+    mcpAPressed = false;
   }
 
   if (mcpBPressed){
-    if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50) 
-    {
-      Serial.println("ENTER MCB");  
+    buttonsAbfragen(2);
 
-      //mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
-
-      int buttonId = getPressedButtonId(2);
-
-      // updateSequencer(buttonId);
-
-      mcpBPressed = false;
-
-      Serial.println("leave B");
-    }
+    mcpBPressed = false;
   }
+
+  // if (mcpAPressed){
+  //   if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
+  //   {
+  //     Serial.println("ENTER MCA");
+
+  //     //mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
+
+  //     int buttonId = getPressedButtonId(1);
+
+  //     // updateSequencer(buttonId);
+
+  //     mcpAPressed = false;
+
+  //     Serial.println("leave A");
+  //   }
+  // }
+
+  // if (mcpBPressed){
+  //   if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50) 
+  //   {
+  //     Serial.println("ENTER MCB");  
+
+  //     //mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
+
+  //     int buttonId = getPressedButtonId(2);
+
+  //     // updateSequencer(buttonId);
+
+  //     mcpBPressed = false;
+
+  //     Serial.println("leave B");
+  //   }
+  // }
 
   if (millis() - testStamp > 100){
 
@@ -498,6 +511,77 @@ int getPressedButtonId(int mcpId)
   Serial.println(buttonId + offset);
 
   return buttonId + offset;
+}
+
+
+
+
+uint8_t mcpRead (byte mcpAdress, byte registerAdress){
+  Wire.beginTransmission(mcpAdress);
+  Wire.write(registerAdress);
+  Wire.endTransmission();
+  Wire.requestFrom(mcpAdress, 1);
+  return Wire.read();
+}
+
+
+
+void buttonsAbfragen(byte woGedrueckt) 
+{
+  byte statusICR = 0;
+  byte mcpWahl = 0;
+
+  if (woGedrueckt == 1 ) {  mcpWahl = MCP23017::ADDRESS_1; }
+  if (woGedrueckt == 2 ) {  mcpWahl = MCP23017::ADDRESS_2; }
+
+  statusICR = mcpRead(mcpWahl,MCP23017::INTFB); 
+  lastButtonPressed = statusICR;
+
+  if (statusICR != 0) { seqNoteSchreiben(statusICR, mcpWahl); }
+}
+
+// Schreibt Werte in den SeqSpeicher
+void seqNoteSchreiben(byte noteInBits, int mcpNummer)
+{
+  byte x = 0;
+
+  if (mcpNummer == 0x21)
+  {
+    mcpNummer = 8;
+  }
+  else 
+  {
+    mcpNummer = 0;
+  }
+
+  while ( bitRead(noteInBits, x) == 0) 
+  {
+    x++;
+  }
+
+  lastButtonPressed = x + 1 + mcpNummer;
+
+  Serial.println("LAST BUTTON");
+  Serial.println(lastButtonPressed);
+
+  if(changeTrack == false)
+  {
+    if (pattern[seqSpurAktiv][x + mcpNummer] ==  1) 
+    { 
+      pattern[seqSpurAktiv][x + mcpNummer] = 0; 
+      sendOkay = false;
+      Serial.println("Note 0");
+      lastButtonPressed = 0;
+    }
+    else 
+    {
+      pattern[seqSpurAktiv][x + mcpNummer] = 1; 
+      velocitySpeicher[seqSpurAktiv][x + mcpNummer] = midiVelocityDisplay;
+      sendOkay = false;
+      Serial.println("Note 1");
+      lastButtonPressed = 0;
+    }
+  }
 }
 
 
