@@ -9,7 +9,7 @@
 #include <Drumsi_Menu.h>
 #include <wiring.h>
 
-volatile byte buttonPressed = 0;
+volatile uint8_t buttonPressed = 0;
 int lastButtonPressed = 0;
 
 // display -> options menu logic
@@ -44,7 +44,7 @@ bool mcpAPressed = false;
 bool mcpBPressed = false;
 
 // OLD STUFF
-byte midiCounter = 0;
+uint8_t midiCounter = 0;
 float midiLastStamp = 0;
 float noteLength = 4.000;
 float bpm = 120.000;
@@ -61,10 +61,10 @@ unsigned long pauseStamp = 0;
 unsigned long shiftAStamp = 0;
 unsigned long shiftBStamp = 0;
 
-byte seqSpurAktiv = 0;
-byte seqStepAktuell = 0;
-volatile byte statusSeqTrackToLED = 0;
-volatile byte statusSeqLauflicht = 0;
+uint8_t seqSpurAktiv = 0;
+uint8_t seqStepAktuell = 0;
+volatile uint8_t statusSeqTrackToLED = 0;
+volatile uint8_t statusSeqLauflicht = 0;
 int midiVelocityDisplay = 127;
 int midiNoteDisplay = midiNotes[0][0];
 int midiChannelDisplay = midiNotes[0][2];
@@ -160,9 +160,6 @@ void setup() {
   pinMode(5, INPUT);
   pinMode(ENC_PIN_A, INPUT);
   pinMode(ENC_PIN_B, INPUT); 
-
-  writeStepLed(4, true);
-  writeStepLed(5, true);
 
   playbackTimer.priority(20);
   playbackTimer.begin(playback, tempoInMs);
@@ -291,20 +288,11 @@ void loop() {
   stopping playback
 */
 void playback(){
-
-  // if (actStep < 8){
-  //   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPIOA, actStep);
-  // }
-  // else{
-  //   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA, actStep);
-  // }
-  
-
   // update LEDs
   for (int i = 0; i < N_STEPS; i++)
   {
     // read pattern
-    if (DUMMY_PATTERN_A[2][i] == 1){
+    if (pattern[2][i] == 1){
 
       
       // toggle current step
@@ -335,10 +323,9 @@ void playback(){
   // send midi notes
   for (int i=0; i < N_TRACKS; i++)
   {
-    if (DUMMY_PATTERN_A[i][actStep] == 1) {
+    if (pattern[i][actStep] == 1) {
       usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
       usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
-      //Serial.println(actStep);
     }
   }
 
@@ -390,8 +377,6 @@ void buttonPressedMcpA()
 {
   if (millis() - mcpAStamp < 500 && mcpAPressed == false) return;
 
-  //detachInterrupt(MCP_PIN_INT_A);
-
   Serial.println("int a");
 
   mcpAStamp = millis();
@@ -401,24 +386,16 @@ void buttonPressedMcpA()
 
   mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
 
-  //attachInterrupt(MCP_PIN_INT_A, buttonPressedMcpA, FALLING);
-
-
   if (buttonId == 0) return;
 
   updateSequencer(buttonId); 
 
-  //attachInterrupt(MCP_PIN_INT_A, buttonPressedMcpA, FALLING);
   mcpAPressed = false;
-
-
 }
 
 void buttonPressedMcpB()
 {
   if (millis() - mcpBStamp < 500 && mcpBPressed == false) return;
-
-  //detachInterrupt(MCP_PIN_INT_B);
 
   Serial.println("int b");
 
@@ -429,23 +406,18 @@ void buttonPressedMcpB()
 
   mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
-  //attachInterrupt(MCP_PIN_INT_A, buttonPressedMcpA, FALLING);
-
   if (buttonId == 0) return;
 
   updateSequencer(buttonId); 
-
 
   mcpBPressed = false;
 }
 
 int getPressedButtonId(int mcpId)
 {
-  byte buttonId = 0;
-  byte statusICR = 0;
+  uint8_t buttonId = 0;
+  uint8_t statusICR = 0;
   int offset = 0;
-
-  // noInterrupts();
 
   switch (mcpId)
   {
@@ -459,9 +431,7 @@ int getPressedButtonId(int mcpId)
     default:
       return 1;
   }
-
-  // interrupts();
-
+  
   // Serial.println(statusICR);
   // *** TO DO ***
   // replace with bitshift
@@ -484,16 +454,16 @@ void updateSequencer(int buttonId)
 {
   if(buttonState == off)
   {
-    if (pattern[seqSpurAktiv][buttonId] ==  1) 
+    if (pattern[2][buttonId] ==  1) 
     { 
-      pattern[seqSpurAktiv][buttonId] = 0; 
+      pattern[2][buttonId] = 0; 
       sendOkay = false;
       lastButtonPressed = 0;
     }
     else 
     {
-      pattern[seqSpurAktiv][buttonId] = 1; 
-      velocitySpeicher[seqSpurAktiv][buttonId] = midiVelocityDisplay;
+      pattern[2][buttonId] = 1; 
+      velocitySpeicher[2][buttonId] = midiVelocityDisplay;
       sendOkay = false;
       lastButtonPressed = 0;
     }
@@ -503,10 +473,10 @@ void updateSequencer(int buttonId)
   }
 }
 
-void writeStepLed(byte stepNummer, bool state){
-  byte status = 0;
-  byte pin = 0;
-  byte address = 0;
+void writeStepLed(uint8_t stepNummer, bool state){
+  uint8_t status = 0;
+  uint8_t pin = 0;
+  uint8_t address = 0;
 
   if ( stepNummer >= 8){ address = MCP23017::ADDRESS_2; }
   else { address = MCP23017::ADDRESS_1; }

@@ -16,7 +16,7 @@ void MCP23017::setValues(int a, int b) {
 }
 
 
-uint8_t MCP23017::read (byte mcpAdress, byte registerAdress){
+uint8_t MCP23017::read (uint8_t mcpAdress, uint8_t registerAdress){
   Wire.beginTransmission(mcpAdress);
   Wire.write(registerAdress);
   Wire.endTransmission();
@@ -29,7 +29,7 @@ void MCP23017::begin()
   Wire.begin();
 }
 
-void MCP23017::write(byte mcpAdress, byte registerAdress, byte registerValues)
+void MCP23017::write(uint8_t mcpAdress, uint8_t registerAdress, uint8_t registerValues)
 {
     Wire.beginTransmission(mcpAdress);
     Wire.write(registerAdress);

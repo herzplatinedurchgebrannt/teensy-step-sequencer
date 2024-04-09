@@ -47,11 +47,11 @@ public:
 
     void begin();
 
-    void write(byte mcpAdress, byte registerAdress, byte registerValues);
+    void write(uint8_t mcpAdress, uint8_t registerAdress, uint8_t registerValues);
 
     // static void buttonInterrupt0();
 
-    uint8_t read(byte mcpAdress, byte registerAdress);
+    uint8_t read(uint8_t mcpAdress, uint8_t registerAdress);
 
     void print();
 };
