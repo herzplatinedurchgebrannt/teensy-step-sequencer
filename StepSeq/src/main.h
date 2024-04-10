@@ -23,6 +23,7 @@ const uint8_t MIDI_CLOCK = 248;
 // buttons -> shift buttons
 enum ShiftButtonState { off, switchTrackActive, switchPatternActive };
 enum PlayerState { stopped, playing };
+enum StepButtonState { released, pressed, holding };
 
 void playback();
 void pauseButtonPressed();
@@ -57,7 +58,7 @@ void encoderSwitch();
 int getPressedButtonId(int identifier);
 
 
-void buttonsAbfragen(byte woGedrueckt);
+int buttonsAbfragen(byte woGedrueckt);
 void seqNoteSchreiben(byte noteInBits, int mcpNummer);
 
 #endif
