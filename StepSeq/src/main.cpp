@@ -37,7 +37,7 @@ StepButtonState stepButtonStateB = released;
 
 float tempoInMs = 250000;
 
-int actTrack = 0;
+int actTrack = 1;
 int actStep = 0;
 int N_TRACKS = 8;
 int N_STEPS = 16;
@@ -63,6 +63,8 @@ unsigned long pauseStamp = 0;
 unsigned long shiftAStamp = 0;
 unsigned long shiftBStamp = 0;
 
+unsigned long ledStepUpdateStamp = 0;
+
 unsigned long testStamp = 0;
 
 uint8_t seqSpurAktiv = 0;
@@ -84,15 +86,10 @@ bool B_set = false;
 bool start = true;
 
 
-
-
 // create singleton of devices
 MCP23017& mcp = MCP23017::getInstance();
 DisplayMenu& menu = DisplayMenu::getInstance();
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
-
-
-
 
 
 void setup() {
@@ -122,7 +119,7 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_1, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
   pinMode(MCP_PIN_INT_B, INPUT);
-  //attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonPressedMcpB, FALLING);
+  attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonPressedMcpB, FALLING);
   attachInterrupt(MCP_PIN_INT_B, buttonPressedMcpB, FALLING);
   mcp.write(MCP23017::ADDRESS_2, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
@@ -165,7 +162,7 @@ void setup() {
   pinMode(ENC_PIN_A, INPUT);
   pinMode(ENC_PIN_B, INPUT); 
 
-  playbackTimer.priority(20);
+  playbackTimer.priority(50);
   playbackTimer.begin(playback, tempoInMs);
 } 
 
@@ -196,9 +193,10 @@ void loop() {
   
   if (stepButtonStateA == holding)
   {
-    if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 500) 
+    if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
     {
       stepButtonStateA = released;
+      mcpAStamp = millis();
       Serial.println("leave A");
       Serial.println(digitalRead(MCP_PIN_INT_A));
     }
@@ -206,9 +204,10 @@ void loop() {
 
   if (stepButtonStateB == holding)
   {
-    if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 500) 
+    if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50) 
     {
       stepButtonStateB = released;
+      mcpBStamp = millis();
       Serial.println("leave B");
       Serial.println(digitalRead(MCP_PIN_INT_B));
     }
@@ -230,7 +229,7 @@ void playback(){
   for (int i = 0; i < N_STEPS; i++)
   {
     // read pattern
-    if (pattern[2][i] == 1){
+    if (pattern[actTrack][i] == 1){
 
       // toggle current step
       // for running led FX
@@ -379,101 +378,63 @@ int buttonsAbfragen(byte woGedrueckt)
 
 
 
-
-
-
-// void getPressedButtonId(byte woGedrueckt) 
-// {
-//   byte statusICR = 0;
-//   byte mcpWahl = 0;
-
-//   if (woGedrueckt == 1 ) {  mcpWahl = MCP_ADDRESS_1; }
-//   if (woGedrueckt == 2 ) {  mcpWahl = MCP_ADDRESS_2; }
-
-//   statusICR = mcpRead(mcpWahl,INTFB); 
-//   lastButtonPressed = statusICR;
-
-//   if (statusICR != 0) { seqNoteSchreiben(statusICR, mcpWahl); }
-// }
-
-// // Schreibt Werte in den SeqSpeicher
-// void seqNoteSchreiben(byte noteInBits, int mcpNummer)
-// {
-//   byte x = 0;
-
-//   if (mcpNummer == 0x21)
-//   {
-//     mcpNummer = 8;
-//   }
-//   else 
-//   {
-//     mcpNummer = 0;
-//   }
-
-//   while ( bitRead(noteInBits, x) == 0) 
-//   {
-//     x++;
-//   }
-
-//   lastButtonPressed = x + 1 + mcpNummer;
-
-//   if(changeTrack == false)
-//   {
-//     if (seqSpeicher[seqSpurAktiv][x + mcpNummer] ==  1) 
-//     { 
-//       seqSpeicher[seqSpurAktiv][x + mcpNummer] = 0; 
-//       sendOkay = false;
-//       Serial.println("Note 0");
-//       lastButtonPressed = 0;
-//     }
-//     else 
-//     {
-//       seqSpeicher[seqSpurAktiv][x + mcpNummer] = 1; 
-//       velocitySpeicher[seqSpurAktiv][x + mcpNummer] = midiVelocityDisplay;
-//       sendOkay = false;
-//       Serial.println("Note 1");
-//       lastButtonPressed = 0;
-//     }
-//   }
-// }
-
-
-
-
-
 // Schreibt Werte in den SeqSpeicher
 void updateSequencer(int buttonId)
 {
-  if (pattern[2][buttonId] == 1) 
+  if (pattern[actTrack][buttonId] == 1) 
   { 
-    pattern[2][buttonId] = 0; 
+    pattern[actTrack][buttonId] = 0; 
     sendOkay = false;
     Serial.println("Note 0");
   }
   else 
   {
-    pattern[2][buttonId] = 1; 
+    pattern[actTrack][buttonId] = 1; 
     sendOkay = false;
     Serial.println("Note 1");
   }
 }
 
-void writeStepLed(uint8_t stepNummer, bool state){
+void writeStepLed(uint8_t stepNummer, bool ledOn){
   uint8_t status = 0;
   uint8_t pin = 0;
   uint8_t address = 0;
 
-  if ( stepNummer >= 8){ address = MCP23017::ADDRESS_2; }
-  else { address = MCP23017::ADDRESS_1; }
+  if ( stepNummer >= 8)
+  { 
+    address = MCP23017::ADDRESS_2; 
+    pin = stepNummer - 8; 
+  }
+  else 
+  { 
+    address = MCP23017::ADDRESS_1; 
+    pin = stepNummer;
+  }
 
   status = mcp.read(address, MCP23017::GPIOA);
 
-  if (stepNummer >= 8) { pin = stepNummer-8; }
-  else { pin = stepNummer;}
-
-  if (state == 0) { status &= ~(B00000001 << (pin));
+  if (stepNummer == 0){
+    Serial.println("STATUS");
+    Serial.println(status);
   }
-  else { status |= (B00000001 << (pin));
+
+  if (ledOn == false) 
+  { 
+    status &= ~(B00000001 << (pin));
+
+    if (stepNummer == 0){
+      Serial.println("OFF");
+      Serial.println(status);
+    }
+  }
+  else 
+  { 
+    status |= (B00000001 << (pin));
+    
+    if (stepNummer == 0){
+      Serial.println("ON");
+      Serial.println(status);
+    }
   }
 
   mcp.write(address, MCP23017::GPIOA, status);

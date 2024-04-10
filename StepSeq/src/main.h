@@ -47,7 +47,8 @@ void getPressedButtonId(uint8_t woGedrueckt);
 void trackInterrupt();
 // leds
 void seqTrackToLED(uint8_t trackNr);
-void seqLauflicht (uint8_t schrittNr);
+void seqLauflicht (byte schrittNr);
+
 // Pattern
 void updateSequencer(int buttonId);
 void togglePlaybackState();
