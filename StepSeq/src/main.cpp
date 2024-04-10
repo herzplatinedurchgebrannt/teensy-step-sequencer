@@ -181,10 +181,7 @@ void loop() {
   if (stepButtonStateA == pressed){
     int id = buttonsAbfragen(1);
 
-    Serial.println("ID A");
-    Serial.println(id);
-
-    updateSequencer(id);
+    //updateSequencer(id);
 
     stepButtonStateA = holding;
   }
@@ -192,10 +189,7 @@ void loop() {
   if (stepButtonStateB == pressed){
     int id = buttonsAbfragen(2);
 
-    Serial.println("ID B");
-    Serial.println(id);
-
-    updateSequencer(id);
+    //updateSequencer(id);
 
     stepButtonStateB = holding;
   }
@@ -219,114 +213,6 @@ void loop() {
       Serial.println(digitalRead(MCP_PIN_INT_B));
     }
   }
- 
-
-
-
-
-
-
-
-  // // handle pressed button event of register A 
-  //if ((mcpAPressed == true) && (millis() - mcpAStamp > 500)){
-
-    // mcpAStamp = millis();
-    // Serial.println("MCP A");
-    // int buttonId = getPressedButtonId(1);
-    // Serial.println(buttonId);
-
-    // if (buttonId != 0) 
-    // { 
-    //   updateSequencer(buttonId); 
-    // }
-    // attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonPressedMcpA, FALLING);
-    // mcpAPressed = false;
-  //}
-
-  // // handle pressed button event of register B  
-  // if ((mcpBPressed == true) && (millis() - mcpBStamp > 500)){
-
-  //   mcpBStamp = millis();
-  //   Serial.println("MCP B");
-  //   int buttonId = getPressedButtonId(2);
-
-  //   if (buttonId != 0) 
-  //   { 
-  //     updateSequencer(buttonId); 
-  //   }
-  //   attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), buttonPressedMcpB, FALLING);
-  //   mcpAPressed = false;
-  // }
-
-
-  // // LED wird angeschaltet damit Shift-Funktion für Benutzer angedeutet wird
-  // if (changeTrack == true){
-  //   digitalWrite(BUTTON_TRACK_LED, HIGH);
-  // }
-
-  // // ChangeTrack Button2 ist aktiv und ein Auswahlbutton wurde gedrückt. B1-8=> Spurwechselm B9-16=> Patternwechsel
-  // if (changeTrack == true && lastButtonPressed != 0)
-  // {
-  //   if (lastButtonPressed <= 8)
-  //   {
-  //     seqSpurAktiv = lastButtonPressed-1;
-  //     midiNoteDisplay = midiNotes[seqSpurAktiv][0];
-
-  //     lastTimeTrack = millis();
-  //     changeTrack = false;
-
-  //     sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-  //     digitalWrite(BUTTON_TRACK_LED, LOW);           // LED von Button2 wird ausgeschaltet, dadurch wird Trackwechsel signalisiert
-  //     lastButtonPressed = 0;
-  //   }
-    
-  //   else if (lastButtonPressed > 8 && lastButtonPressed <= 16)
-  //   {
-  //     loadPreset (lastButtonPressed);  
-  //     menuActivePattern = lastButtonPressed -8;
-
-  //     lastTimeTrack = millis();
-  //     changeTrack = false;
-
-  //     sendOkay = false;                // in diesem Durchlauf darf Controller keine Note mehr schicken aufgrund von ChangeTrack
-  //     digitalWrite(39, LOW);  
-  //     lastButtonPressed = 0;
-  //   }
-  // }
-
-
-
-  //   // usbMIDI.read();
-
-  //   // Hier ist die Zeitschleife
-  //   if (millis()-lastTime >= tempo  && startStopInterrupt == false && unknownFlag == true)
-  //   {    
-  //     // LEDs von der aktuell angewählten Spur werden angezeigt
-  //     seqTrackToLED(seqSpurAktiv);
-
-  //     // Lauflichteffekt
-  //     seqLauflicht(seqStepAktuell);
-
-  //     // Midi Noten raus schicken per USB
-  //     //sendMidiNotes(seqSpurAktiv, seqStepAktuell);
-
-  //     // Schritt hochzählen
-  //     seqStepAktuell = seqStepAktuell + 1;
-  //     if (seqStepAktuell == 16){ seqStepAktuell = 0;}
-
-  //     // lastTime vllt mal an Anfang der Schleife ausprobieren für stabileres Timing?!?!?!
-  //     lastTime = millis();
-  //   }
-
-  //   if (buttonPressed != 0 && sendOkay == true)
-  //   {
-  //     buttonsAbfragen(buttonPressed);
-  //     buttonPressed = 0;    
-  //   }
-  //   if (digitalRead(MCP_PIN_INT_A) == 1 && digitalRead(MCP_PIN_INT_B) == 1)
-  //   {
-  //     sendOkay = true;
-  //   }
 }
 
 
@@ -445,57 +331,6 @@ void buttonPressedMcpB()
   stepButtonStateB = pressed;
 }
 
-int getPressedButtonId(int mcpId)
-{
-  Serial.println("get pressed button");
-
-  volatile uint8_t buttonId = 0;
-  volatile uint8_t statusICR = 0;
-  int offset = 0;
-
-  switch (mcpId)
-  {
-    case 1:
-      statusICR = mcp.read(MCP23017::ADDRESS_1,MCP23017::INTFB);
-      Serial.println("STATUS ICR");
-      Serial.println(statusICR);
-      break;
-    case 2:
-      statusICR = mcp.read(MCP23017::ADDRESS_2,MCP23017::INTFB);
-      Serial.println("STATUS ICR");
-      Serial.println(statusICR);
-      offset = 8;
-      break;
-    default:
-      return 1;
-  }
-
-  Serial.println("while");
-
-  int i = 0;
-  
-  // Serial.println(statusICR);
-  // *** TO DO ***
-  // replace with bitshift
-  while (bitRead(statusICR, buttonId) == 0) 
-  {
-    buttonId++;
-    // Serial.println(i);
-    // i++;
-
-    // if (i == 8){
-    //   break;
-    // }
-  }
-
-  Serial.println("sequencer button:");
-  Serial.println(buttonId + offset);
-
-  return buttonId + offset;
-}
-
-
-
 
 uint8_t mcpRead (byte mcpAdress, byte registerAdress){
   Wire.beginTransmission(mcpAdress);
@@ -541,6 +376,22 @@ int buttonsAbfragen(byte woGedrueckt)
     }
 
     lastButtonPressed = x + offset;
+
+    Serial.println(lastButtonPressed + "test");
+    Serial.println(lastButtonPressed);
+
+    if (pattern[2][lastButtonPressed] == 1) 
+    { 
+      pattern[2][lastButtonPressed] = 0; 
+      sendOkay = false;
+      Serial.println("Note 0");
+    }
+    else 
+    {
+      pattern[2][lastButtonPressed] = 1; 
+      sendOkay = false;
+      Serial.println("Note 1");
+    }
 
     return lastButtonPressed;
 
