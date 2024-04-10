@@ -10,7 +10,7 @@
 #include <wiring.h>
 
 volatile uint8_t buttonPressed = 0;
-int lastButtonPressed = 0;
+// int lastButtonPressed = 0;
 
 // display -> options menu logic
 bool displayValueChange = false;
@@ -181,7 +181,7 @@ void loop() {
   if (stepButtonStateA == pressed){
     int id = buttonsAbfragen(1);
 
-    //updateSequencer(id);
+    updateSequencer(id);
 
     stepButtonStateA = holding;
   }
@@ -189,7 +189,7 @@ void loop() {
   if (stepButtonStateB == pressed){
     int id = buttonsAbfragen(2);
 
-    //updateSequencer(id);
+    updateSequencer(id);
 
     stepButtonStateB = holding;
   }
@@ -232,7 +232,6 @@ void playback(){
     // read pattern
     if (pattern[2][i] == 1){
 
-      
       // toggle current step
       // for running led FX
       if (i == actStep) {
@@ -364,103 +363,20 @@ int buttonsAbfragen(byte woGedrueckt)
   }
 
   statusICR = mcpRead(mcpWahl,MCP23017::INTFB); 
-  lastButtonPressed = statusICR;
 
   if (statusICR != 0) 
   { 
-    byte x = 0;
+    byte value = 0;
 
-    while ( bitRead(statusICR, x) == 0) 
+    while ( bitRead(statusICR, value) == 0) 
     {
-      x++;
+      value++;
     }
 
-    lastButtonPressed = x + offset;
-
-    Serial.println(lastButtonPressed + "test");
-    Serial.println(lastButtonPressed);
-
-    if (pattern[2][lastButtonPressed] == 1) 
-    { 
-      pattern[2][lastButtonPressed] = 0; 
-      sendOkay = false;
-      Serial.println("Note 0");
-    }
-    else 
-    {
-      pattern[2][lastButtonPressed] = 1; 
-      sendOkay = false;
-      Serial.println("Note 1");
-    }
-
-    return lastButtonPressed;
-
-    // if(changeTrack == false)
-    // {
-    //   if (pattern[seqSpurAktiv][x + mcpNummer] ==  1) 
-    //   { 
-    //     pattern[seqSpurAktiv][x + mcpNummer] = 0; 
-    //     sendOkay = false;
-    //     Serial.println("Note 0");
-    //     lastButtonPressed = 0;
-    //   }
-    //   else 
-    //   {
-    //     pattern[seqSpurAktiv][x + mcpNummer] = 1; 
-    //     velocitySpeicher[seqSpurAktiv][x + mcpNummer] = midiVelocityDisplay;
-    //     sendOkay = false;
-    //     Serial.println("Note 1");
-    //     lastButtonPressed = 0;
-    //   }
-    // }
+    return value + offset;
   }
-
-  
 }
 
-// Schreibt Werte in den SeqSpeicher
-void seqNoteSchreiben(byte noteInBits, int mcpNummer)
-{
-  byte x = 0;
-
-  if (mcpNummer == 0x21)
-  {
-    mcpNummer = 8;
-  }
-  else 
-  {
-    mcpNummer = 0;
-  }
-
-  while ( bitRead(noteInBits, x) == 0) 
-  {
-    x++;
-  }
-
-  lastButtonPressed = x + 1 + mcpNummer;
-
-  Serial.println("LAST BUTTON");
-  Serial.println(lastButtonPressed);
-
-  if(changeTrack == false)
-  {
-    if (pattern[seqSpurAktiv][x + mcpNummer] ==  1) 
-    { 
-      pattern[seqSpurAktiv][x + mcpNummer] = 0; 
-      sendOkay = false;
-      Serial.println("Note 0");
-      lastButtonPressed = 0;
-    }
-    else 
-    {
-      pattern[seqSpurAktiv][x + mcpNummer] = 1; 
-      velocitySpeicher[seqSpurAktiv][x + mcpNummer] = midiVelocityDisplay;
-      sendOkay = false;
-      Serial.println("Note 1");
-      lastButtonPressed = 0;
-    }
-  }
-}
 
 
 
@@ -528,24 +444,17 @@ void seqNoteSchreiben(byte noteInBits, int mcpNummer)
 // Schreibt Werte in den SeqSpeicher
 void updateSequencer(int buttonId)
 {
-  if(buttonState == off)
-  {
-    if (pattern[2][buttonId] ==  1) 
-    { 
-      pattern[2][buttonId] = 0; 
-      sendOkay = false;
-      lastButtonPressed = 0;
-    }
-    else 
-    {
-      pattern[2][buttonId] = 1; 
-      velocitySpeicher[2][buttonId] = midiVelocityDisplay;
-      sendOkay = false;
-      lastButtonPressed = 0;
-    }
+  if (pattern[2][buttonId] == 1) 
+  { 
+    pattern[2][buttonId] = 0; 
+    sendOkay = false;
+    Serial.println("Note 0");
   }
-  else{
-    // do nothing
+  else 
+  {
+    pattern[2][buttonId] = 1; 
+    sendOkay = false;
+    Serial.println("Note 1");
   }
 }
 
