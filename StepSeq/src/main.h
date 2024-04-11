@@ -21,9 +21,9 @@ const uint8_t MIDI_STOP = 252;
 const uint8_t MIDI_CLOCK = 248;
 
 // buttons -> shift buttons
-enum ShiftButtonState { off, switchTrackActive, switchPatternActive };
+enum ShiftFunction { off, switchTrackActive, switchPatternActive };
 enum PlayerState { stopped, playing };
-enum StepButtonState { released, pressed, holding };
+enum ButtonState { released, pressed, holding };
 
 void playback();
 void pauseButtonPressed();
