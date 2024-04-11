@@ -59,6 +59,8 @@ unsigned long lastTimeTrack = 0;
 
 unsigned long testStamp = 0;
 
+unsigned long tempoStamp = 0;
+
 uint8_t seqSpurAktiv = 0;
 uint8_t seqStepAktuell = 0;
 volatile uint8_t statusSeqTrackToLED = 0;
@@ -154,20 +156,38 @@ void setup() {
   pinMode(ENC_PIN_A, INPUT);
   pinMode(ENC_PIN_B, INPUT); 
 
-  playbackTimer.priority(50);
-  playbackTimer.begin(playback, tempoInMs);
+  // playbackTimer.priority(50);
+  // playbackTimer.begin(playback, tempoInMs);
 
-  // write LED output of selected track
-  // for (int i = 0; i < N_STEPS; i++)
-  // {
-  //   writeStepLed(i,pattern[actTrack][i]);
-  //   Serial.println("WRITE LED ON");
-  // }
+  //write LED output of selected track
+  for (int i = 0; i < N_STEPS; i++)
+  {
+    writeStepLed(i,pattern[actTrack][i]);
+    Serial.println("WRITE LED ON");
+  }
 } 
 
 
 
 void loop() {
+  // tempo stuff
+  if (millis() - tempoStamp >= 250)
+  {
+    tempoStamp = millis();
+
+    if (playerState == playing) 
+    {
+      // led stuff
+      seqTrackToLED(actTrack);
+      seqLauflicht(actStep);
+      // send midi to host
+      sendMidi();
+
+      // increment current step
+      if (actStep < N_STEPS - 1) actStep++;
+      else actStep = 0;
+    }
+  }
 
   // read frequently to unlock interrupts
   mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
@@ -196,20 +216,42 @@ void loop() {
     int id = getPressedButton(2);
     updateSequencer(id);
     stepButtonStateB = holding;
-  }
-  if (stepButtonStateB == holding)
-  {
-    if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50) 
-    {
+    }
+  if (stepButtonStateB == holding){
+    if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50){
       stepButtonStateB = released;
       mcpBStamp = millis();
       Serial.println("leave B");
       Serial.println(digitalRead(MCP_PIN_INT_B));
+      }
+    }
+
+
+}
+
+
+void sendMidi(){
+  for (int i=0; i < N_TRACKS; i++)
+  {
+    if (pattern[i][actStep] == 1) {
+      usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
+      usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
     }
   }
 }
 
+// Invertiert den aktuellen LED-Status, damit ein Lauflichteffekt entsteht
+void seqLauflicht (byte schrittNr){
+  if (pattern[actTrack][schrittNr] == 1){ writeStepLed(schrittNr,0);}
+  else {writeStepLed(schrittNr,1);}
+}
 
+// Schaltet die LEDs der aktiven Spur so wie im SeqSpeicher an/aus
+void seqTrackToLED(byte trackNr) {
+  for (int i=0; i<=15; i++) {
+    writeStepLed(i,pattern[trackNr][i]);
+    }
+  }
 
 
 /*
@@ -220,95 +262,27 @@ void loop() {
   stopping playback
 */
 
-
-int previousStep = 15;
 void playback(){
-
-  writeStepLed(actStep,1);
-
-  // if (pattern[actTrack][actStep] == 1)
-  // { 
-  //   writeStepLed(actStep,0);
-  // }
-  // else 
-  // {
-  //   writeStepLed(actStep,1);
-  // }
-
-  // if (pattern[actTrack][previousStep] == 1)
-  // { 
-  //   writeStepLed(previousStep,1);
-  // }
-  // else 
-  // {
-  //   writeStepLed(previousStep,0);
-  // }
-
-
-
-  previousStep = actStep;
-  // update LEDs
-  // for (int i = 0; i < N_STEPS; i++)
-  // {
-  //   // read pattern
-  //   if (pattern[actTrack][i] == 1){
-
-  //     // toggle current step
-  //     // for running led FX
-  //     if (i == actStep) {
-  //       // Serial.println("WRITE LED OFF");
-  //       writeStepLed(i,0);}
-
-  //     else {
-  //       writeStepLed(i,1);
-  //       //Serial.println("WRITE LED ON");
-  //     } 
-  //   }
-  //   else{
-  //     // toggle current step
-  //     // for running led FX
-  //     if (i == actStep) {
-  //       //Serial.println("WRITE LED ON");
-  //       writeStepLed(i,1);
-  //     }
-  //     else {
-  //       //Serial.println("WRITE LED OFF");
-  //       writeStepLed(i,0);
-  //       }
-  //   }
-  // }
-
-  // send midi notes
-  for (int i=0; i < N_TRACKS; i++)
-  {
-    if (pattern[i][actStep] == 1) {
-      usbMIDI.sendNoteOn(midiNotes[i][0], 127, 1);
-      usbMIDI.sendNoteOff(midiNotes[i][0], 127, 1);
-    }
-  }
-
   // increment current step
   if (actStep < N_STEPS - 1) actStep++;
   else actStep = 0;
-
-  interrupts();
 }
 
 /// @brief toggle player state
 void pauseButtonPressed(){
-  if (millis() - pauseStamp < 50) return;
+  if (millis() - pauseStamp < 10) return;
 
   pauseStamp = millis();
 
   if (playerState == stopped){
     actStep = 0;
-    playbackTimer.begin(playback, tempoInMs);
+    // playbackTimer.begin(playback, tempoInMs);
     digitalWrite(BUTTON_PLAY_LED, false);
     playerState = playing;
     Serial.println("START");
   } 
   else{
-    playbackTimer.end();
+    // playbackTimer.end();
     digitalWrite(BUTTON_PLAY_LED, true);
     playerState = stopped;
     Serial.println("STOP");

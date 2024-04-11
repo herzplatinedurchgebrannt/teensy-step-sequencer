@@ -62,4 +62,6 @@ int getPressedButtonId(int identifier);
 int getPressedButton(byte woGedrueckt);
 void seqNoteSchreiben(byte noteInBits, int mcpNummer);
 
+void sendMidi();
+
 #endif
