@@ -37,7 +37,7 @@ StepButtonState stepButtonStateB = released;
 
 float tempoInMs = 250000;
 
-int actTrack = 1;
+int actTrack = 5;
 int actStep = 0;
 int N_TRACKS = 8;
 int N_STEPS = 16;
@@ -45,17 +45,7 @@ int N_STEPS = 16;
 volatile bool mcpAPressed = false;
 volatile bool mcpBPressed = false;
 
-// OLD STUFF
-uint8_t midiCounter = 0;
-float midiLastStamp = 0;
-float noteLength = 4.000;
-float bpm = 120.000;
-float offset = 0;
-float tempo = (1000.000/(bpm/60*noteLength));
-float bpmClock = 0;
-int changeTempo = false;
-unsigned long lastTime = 0;
-unsigned long lastTimeTrack = 0;
+
 
 unsigned long mcpAStamp = 0;
 unsigned long mcpBStamp = 0;
@@ -64,6 +54,8 @@ unsigned long shiftAStamp = 0;
 unsigned long shiftBStamp = 0;
 
 unsigned long ledStepUpdateStamp = 0;
+
+unsigned long lastTimeTrack = 0;
 
 unsigned long testStamp = 0;
 
@@ -164,6 +156,13 @@ void setup() {
 
   playbackTimer.priority(50);
   playbackTimer.begin(playback, tempoInMs);
+
+  // write LED output of selected track
+  // for (int i = 0; i < N_STEPS; i++)
+  // {
+  //   writeStepLed(i,pattern[actTrack][i]);
+  //   Serial.println("WRITE LED ON");
+  // }
 } 
 
 
@@ -174,23 +173,13 @@ void loop() {
   mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
   mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
-
+  // MCP REGISTER A
+  // step button as state machine [released, pressed, holding]
   if (stepButtonStateA == pressed){
-    int id = buttonsAbfragen(1);
-
+    int id = getPressedButton(1);
     updateSequencer(id);
-
     stepButtonStateA = holding;
   }
-
-  if (stepButtonStateB == pressed){
-    int id = buttonsAbfragen(2);
-
-    updateSequencer(id);
-
-    stepButtonStateB = holding;
-  }
-  
   if (stepButtonStateA == holding)
   {
     if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
@@ -202,6 +191,12 @@ void loop() {
     }
   }
 
+  // MCP REGISTER B
+  if (stepButtonStateB == pressed){
+    int id = getPressedButton(2);
+    updateSequencer(id);
+    stepButtonStateB = holding;
+  }
   if (stepButtonStateB == holding)
   {
     if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50) 
@@ -224,37 +219,64 @@ void loop() {
   send old active notes off when 
   stopping playback
 */
+
+
+int previousStep = 15;
 void playback(){
+
+  writeStepLed(actStep,1);
+
+  // if (pattern[actTrack][actStep] == 1)
+  // { 
+  //   writeStepLed(actStep,0);
+  // }
+  // else 
+  // {
+  //   writeStepLed(actStep,1);
+  // }
+
+  // if (pattern[actTrack][previousStep] == 1)
+  // { 
+  //   writeStepLed(previousStep,1);
+  // }
+  // else 
+  // {
+  //   writeStepLed(previousStep,0);
+  // }
+
+
+
+  previousStep = actStep;
   // update LEDs
-  for (int i = 0; i < N_STEPS; i++)
-  {
-    // read pattern
-    if (pattern[actTrack][i] == 1){
+  // for (int i = 0; i < N_STEPS; i++)
+  // {
+  //   // read pattern
+  //   if (pattern[actTrack][i] == 1){
 
-      // toggle current step
-      // for running led FX
-      if (i == actStep) {
-        // Serial.println("WRITE LED OFF");
-        writeStepLed(i,0);}
+  //     // toggle current step
+  //     // for running led FX
+  //     if (i == actStep) {
+  //       // Serial.println("WRITE LED OFF");
+  //       writeStepLed(i,0);}
 
-      else {
-        writeStepLed(i,1);
-        //Serial.println("WRITE LED ON");
-      } 
-    }
-    else{
-      // toggle current step
-      // for running led FX
-      if (i == actStep) {
-        //Serial.println("WRITE LED ON");
-        writeStepLed(i,1);
-      }
-      else {
-        //Serial.println("WRITE LED OFF");
-        writeStepLed(i,0);
-        }
-    }
-  }
+  //     else {
+  //       writeStepLed(i,1);
+  //       //Serial.println("WRITE LED ON");
+  //     } 
+  //   }
+  //   else{
+  //     // toggle current step
+  //     // for running led FX
+  //     if (i == actStep) {
+  //       //Serial.println("WRITE LED ON");
+  //       writeStepLed(i,1);
+  //     }
+  //     else {
+  //       //Serial.println("WRITE LED OFF");
+  //       writeStepLed(i,0);
+  //       }
+  //   }
+  // }
 
   // send midi notes
   for (int i=0; i < N_TRACKS; i++)
@@ -268,6 +290,8 @@ void playback(){
   // increment current step
   if (actStep < N_STEPS - 1) actStep++;
   else actStep = 0;
+
+  interrupts();
 }
 
 /// @brief toggle player state
@@ -294,6 +318,7 @@ void pauseButtonPressed(){
 /// @brief update sequencer tempo
 /// @param bpm 
 void updateTempo(float bpm){
+  int noteLength = 4;
   tempoInMs = (1000.000/(bpm/60*noteLength));
   playbackTimer.update(tempoInMs);
 }
@@ -340,7 +365,7 @@ uint8_t mcpRead (byte mcpAdress, byte registerAdress){
 
 
 
-int buttonsAbfragen(byte woGedrueckt) 
+int getPressedButton(byte woGedrueckt) 
 {
   byte statusICR = 0;
   byte mcpWahl = 0;

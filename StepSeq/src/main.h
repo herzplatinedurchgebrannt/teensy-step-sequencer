@@ -59,7 +59,7 @@ void encoderSwitch();
 int getPressedButtonId(int identifier);
 
 
-int buttonsAbfragen(byte woGedrueckt);
+int getPressedButton(byte woGedrueckt);
 void seqNoteSchreiben(byte noteInBits, int mcpNummer);
 
 #endif
