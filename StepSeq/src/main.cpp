@@ -32,7 +32,6 @@ unsigned long mcpBStamp = 0;
 
 // playback
 IntervalTimer playbackTimer;
-ShiftFunction shiftFunction = SHIFT_OFF;
 PlayerState playerState = PLAYER_PLAYING;
 
 int prevNotesPlayed[] = {false, false, false, false, false, false, false, false};
@@ -44,7 +43,7 @@ int actStep = 0;
 unsigned long pauseStamp = 0;
 unsigned long shiftAStamp = 0;
 unsigned long shiftBStamp = 0;
-unsigned long lastTimeTrack = 0;
+unsigned long selectStamp = 0;
 unsigned long tempoStamp = 0;
 
 DisplayMenu& menu = DisplayMenu::getInstance();
@@ -154,17 +153,17 @@ void loop() {
     int buttonId = identifyStepButton(1);
 
     // handle function logic
-    switch (shiftFunction)
+    switch (shiftButtonState)
     {
       case BTN_OFF:
         // no shift function selected
         // default step sequencing
         updatePattern(buttonId);
         break;
-      case SHIFT_ON:
+      case BTN_PRESSED:
         // change active track
         actTrack = buttonId;
-        shiftFunction = SHIFT_OFF;
+        shiftButtonState = BTN_OFF;
         digitalWrite(BUTTON_TRACK_LED, false);
         break; 
       default:
@@ -193,18 +192,16 @@ void loop() {
     int buttonId = identifyStepButton(2);
 
     // handle function logic
-    switch (shiftFunction)
+    switch (shiftButtonState)
     {
       case BTN_OFF:
         // no shift function selected
         // default step sequencing
         updatePattern(buttonId);
         break;
-      case SHIFT_ON:
-        // change active track  
-        actTrack = buttonId;
-        shiftFunction = SHIFT_OFF;
-        digitalWrite(BUTTON_TRACK_LED, false);
+      case BTN_PRESSED:
+        // change active pattern  
+        // ...
         break;  
       default:
         break;
@@ -425,22 +422,19 @@ void writeLed(uint8_t stepNummer, bool ledOn){
 // press shift [control button 2] and step 1-8
 void selectInterrupt()
 {
-  if ((millis() - lastTimeTrack < 50) && shiftButtonState != BTN_OFF) return;
+  if ((millis() - selectStamp < 50)) return;
 
-  shiftButtonState = BTN_CLICKED;
-
-  if (shiftFunction == SHIFT_ON)
+  if (shiftButtonState == BTN_OFF)
   {
+    shiftButtonState = BTN_PRESSED;
     digitalWrite(BUTTON_TRACK_LED, true);
-    shiftFunction = SHIFT_ON;
   }
   else 
   {
+    shiftButtonState = BTN_OFF;
     digitalWrite(BUTTON_TRACK_LED, false);
-    shiftFunction = SHIFT_OFF;
   }
 
-  shiftFunction = SHIFT_ON;
-  lastTimeTrack = millis();
+  selectStamp = millis();
 }
 

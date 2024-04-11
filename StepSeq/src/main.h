@@ -25,7 +25,6 @@ const int N_TRACKS = 8;
 const int N_STEPS = 16;
 
 // state enums
-enum ShiftFunction { SHIFT_OFF, SHIFT_ON };
 enum PlayerState { PLAYER_STOPPED, PLAYER_PLAYING };
 enum ButtonState { BTN_OFF, BTN_CLICKED, BTN_PRESSED, BTN_ON, BTN_RELEASED };
 
