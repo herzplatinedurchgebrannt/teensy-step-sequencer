@@ -13,14 +13,18 @@ const int BUTTON_PLAY_PIN = 2;
 const int BUTTON_PLAY_LED = 38;
 const int BUTTON_TRACK_PIN = 3;
 const int BUTTON_TRACK_LED = 39;
+const int BUTTON_PATTERN_PIN = 0; // ????
+const int BUTTON_PATTERN_LED = 40;
 const int RESET_PIN = 26;
 // constants
 const uint8_t MIDI_START = 250;
 const uint8_t MIDI_CONTINUE = 251;
 const uint8_t MIDI_STOP = 252;
 const uint8_t MIDI_CLOCK = 248;
+const int N_TRACKS = 8;
+const int N_STEPS = 16;
 
-// buttons -> shift buttons
+// state enums
 enum ShiftFunction { off, switchTrackActive, switchPatternActive };
 enum PlayerState { stopped, playing };
 enum ButtonState { released, pressed, holding };
@@ -40,17 +44,17 @@ void draw(void);
 void beatClock(uint8_t realtimeuint8_t);
 void sendMidiNotes(uint8_t spur, uint8_t schritt);
 // buttons
-void writeStepLed(uint8_t stepNummer, bool anOderAus);
-void buttonPressedMcpA();
-void buttonPressedMcpB();
+void writeLed(uint8_t stepNummer, bool anOderAus);
+void mcpAButtonPressedInterrupt();
+void mcpBButtonPressedInterrupt();
 void getPressedButtonId(uint8_t woGedrueckt);
-void trackInterrupt();
+void shiftTrackInterrupt();
 // leds
 void seqTrackToLED(uint8_t trackNr);
 void seqLauflicht (byte schrittNr);
 
 // Pattern
-void updateSequencer(int buttonId);
+void updatePattern(int buttonId);
 void togglePlaybackState();
 void loadPreset (int whichPreset);
 // encoder
@@ -59,9 +63,9 @@ void encoderSwitch();
 int getPressedButtonId(int identifier);
 
 
-int getPressedButton(byte woGedrueckt);
+int identifyStepButton(byte woGedrueckt);
 void seqNoteSchreiben(byte noteInBits, int mcpNummer);
 
-void sendMidi();
+void sendMidiNotes();
 
 #endif
