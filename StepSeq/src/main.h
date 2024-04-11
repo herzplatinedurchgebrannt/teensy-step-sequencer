@@ -13,7 +13,7 @@ const int BUTTON_PLAY_PIN = 2;
 const int BUTTON_PLAY_LED = 38;
 const int BUTTON_TRACK_PIN = 3;
 const int BUTTON_TRACK_LED = 39;
-const int BUTTON_PATTERN_PIN = 0; // ????
+const int BUTTON_PATTERN_PIN = 4;
 const int BUTTON_PATTERN_LED = 40;
 const int RESET_PIN = 26;
 // constants
@@ -25,9 +25,9 @@ const int N_TRACKS = 8;
 const int N_STEPS = 16;
 
 // state enums
-enum ShiftFunction { off, switchTrackActive, switchPatternActive };
-enum PlayerState { stopped, playing };
-enum ButtonState { released, pressed, holding };
+enum ShiftFunction { SHIFT_OFF, SHIFT_ON };
+enum PlayerState { PLAYER_STOPPED, PLAYER_PLAYING };
+enum ButtonState { BTN_OFF, BTN_CLICKED, BTN_PRESSED, BTN_ON, BTN_RELEASED };
 
 void playback();
 void pauseButtonPressed();
@@ -48,7 +48,7 @@ void writeLed(uint8_t stepNummer, bool anOderAus);
 void mcpAButtonPressedInterrupt();
 void mcpBButtonPressedInterrupt();
 void getPressedButtonId(uint8_t woGedrueckt);
-void shiftTrackInterrupt();
+void selectInterrupt();
 // leds
 void seqTrackToLED(uint8_t trackNr);
 void seqLauflicht (byte schrittNr);

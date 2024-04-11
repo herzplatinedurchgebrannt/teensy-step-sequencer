@@ -20,10 +20,10 @@ int lastReportedPos = 1;
 // buttons
 MCP23017& mcp = MCP23017::getInstance();
 
-ButtonState stepButtonStateA = released;
-ButtonState stepButtonStateB = released;
-ButtonState shiftTrackState = released; 
-ButtonState shiftPatternStateB = released;
+ButtonState stepButtonStateA = BTN_OFF;
+ButtonState stepButtonStateB = BTN_OFF;
+ButtonState shiftButtonState = BTN_OFF; 
+ButtonState shiftPatternStateB = BTN_OFF;
 
 volatile bool mcpAPressed = false;
 volatile bool mcpBPressed = false;
@@ -32,15 +32,14 @@ unsigned long mcpBStamp = 0;
 
 // playback
 IntervalTimer playbackTimer;
-ShiftFunction shiftFunction = off;
-PlayerState playerState = playing;
+ShiftFunction shiftFunction = SHIFT_OFF;
+PlayerState playerState = PLAYER_PLAYING;
 
 int prevNotesPlayed[] = {false, false, false, false, false, false, false, false};
 
 float tempoInMs = 250;
 int actTrack = 2;
 int actStep = 0;
-
 
 unsigned long pauseStamp = 0;
 unsigned long shiftAStamp = 0;
@@ -50,7 +49,6 @@ unsigned long tempoStamp = 0;
 
 DisplayMenu& menu = DisplayMenu::getInstance();
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
-
 
 void setup() {
 
@@ -100,12 +98,12 @@ void setup() {
 
   // shift track button
   pinMode(BUTTON_TRACK_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_TRACK_PIN), shiftTrackInterrupt, FALLING);  
+  attachInterrupt(digitalPinToInterrupt(BUTTON_TRACK_PIN), selectInterrupt, FALLING);  
   pinMode(BUTTON_TRACK_LED, OUTPUT);
 
   // shift pattern button
-  //pinMode(BUTTON_PATTERN_PIN, OUTPUT); 
-  //digitalWrite(BUTTON_PATTERN_LED, LOW);
+  pinMode(BUTTON_PATTERN_PIN, OUTPUT); 
+  digitalWrite(BUTTON_PATTERN_LED, LOW);
 
   // internal teensy led
   pinMode(13, OUTPUT);
@@ -131,7 +129,7 @@ void loop() {
   {
     tempoStamp = millis();
 
-    if (playerState == playing) 
+    if (playerState == PLAYER_PLAYING) 
     {
       // led sequence
       seqTrackToLED(actTrack);
@@ -152,92 +150,84 @@ void loop() {
 
   // MCP REGISTER A
   // step button as state machine [released, pressed, holding]
-  if (stepButtonStateA == pressed){
+  if (stepButtonStateA == BTN_CLICKED){
     int buttonId = identifyStepButton(1);
 
     // handle function logic
     switch (shiftFunction)
     {
-      case off:
+      case BTN_OFF:
         // no shift function selected
         // default step sequencing
         updatePattern(buttonId);
         break;
-      case switchTrackActive:
+      case SHIFT_ON:
         // change active track
         actTrack = buttonId;
-        shiftFunction = off;
+        shiftFunction = SHIFT_OFF;
         digitalWrite(BUTTON_TRACK_LED, false);
-        break;
-      case switchPatternActive:
-        // change active pattern
-        // ...
-        break;    
+        break; 
       default:
         break;
     }
 
     // logic handled, set state to holding
     // wait for release button
-    stepButtonStateA = holding;
+    stepButtonStateA = BTN_PRESSED;
   }
 
-  if (stepButtonStateA == holding)
+  if (stepButtonStateA == BTN_PRESSED)
   {
     // check if pin of mcp A is released
     if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
     {
-      stepButtonStateA = released;
+      stepButtonStateA = BTN_OFF;
       mcpAStamp = millis();
     }
   }
 
   // MCP REGISTER B
   // step button as state machine [released, pressed, holding]
-  if (stepButtonStateB == pressed)
+  if (stepButtonStateB == BTN_CLICKED)
   {
     int buttonId = identifyStepButton(2);
 
     // handle function logic
     switch (shiftFunction)
     {
-      case off:
+      case BTN_OFF:
         // no shift function selected
         // default step sequencing
         updatePattern(buttonId);
         break;
-      case switchTrackActive:
+      case SHIFT_ON:
         // change active track  
         actTrack = buttonId;
-        shiftFunction = off;
+        shiftFunction = SHIFT_OFF;
         digitalWrite(BUTTON_TRACK_LED, false);
-        break;
-      case switchPatternActive:
-        // change active pattern  
-        // ...
-        break;    
+        break;  
       default:
         break;
     }
 
     // logic handled, set state to holding
     // wait for release button
-    stepButtonStateB = holding;
+    stepButtonStateB = BTN_PRESSED;
   }
 
-  if (stepButtonStateB == holding)
+  if (stepButtonStateB == BTN_PRESSED)
   {
     // check if pin of mcp B is released
     if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50)
     {
-      stepButtonStateB = released;
+      stepButtonStateB = BTN_OFF;
       mcpBStamp = millis();
     }
   }
 
-  if (shiftTrackState == pressed) 
+  if (shiftButtonState == BTN_CLICKED) 
   {
-    shiftTrackState = holding;
+    shiftButtonState = BTN_PRESSED;
   }
 }
 
@@ -299,15 +289,15 @@ void pauseButtonPressed(){
 
   pauseStamp = millis();
 
-  if (playerState == stopped){
+  if (playerState == PLAYER_STOPPED){
     actStep = 0;
     digitalWrite(BUTTON_PLAY_LED, false);
-    playerState = playing;
+    playerState = PLAYER_PLAYING;
     Serial.println("START");
   } 
   else{
     digitalWrite(BUTTON_PLAY_LED, true);
-    playerState = stopped;
+    playerState = PLAYER_STOPPED;
     Serial.println("STOP");
   }
 }
@@ -332,16 +322,16 @@ void encoderSwitch(){
 
 void mcpAButtonPressedInterrupt()
 {
-  if (millis() - mcpAStamp < 50 || stepButtonStateA != released ) return;
+  if (millis() - mcpAStamp < 50 || stepButtonStateA != BTN_OFF ) return;
   mcpAStamp = millis();
-  stepButtonStateA = pressed;
+  stepButtonStateA = BTN_CLICKED;
 }
 
 void mcpBButtonPressedInterrupt()
 {
-  if (millis() - mcpBStamp < 50 || stepButtonStateB != released ) return;
+  if (millis() - mcpBStamp < 50 || stepButtonStateB != BTN_OFF ) return;
   mcpBStamp = millis();
-  stepButtonStateB = pressed;
+  stepButtonStateB = BTN_CLICKED;
 }
 
 uint8_t mcpRead (byte mcpAdress, byte registerAdress){
@@ -389,8 +379,6 @@ int identifyStepButton(byte woGedrueckt)
   return -1;
 }
 
-
-
 // Schreibt Werte in den SeqSpeicher
 void updatePattern(int buttonId)
 {
@@ -433,23 +421,26 @@ void writeLed(uint8_t stepNummer, bool ledOn){
 }
 
 
-// Interrupt, welcher die aktuelle Spur ändert
-void shiftTrackInterrupt(){
-  if ((millis() - lastTimeTrack < 50) && shiftTrackState != released) return;
+// switch track on sequencer
+// press shift [control button 2] and step 1-8
+void selectInterrupt()
+{
+  if ((millis() - lastTimeTrack < 50) && shiftButtonState != BTN_OFF) return;
 
-  shiftTrackState = pressed;
+  shiftButtonState = BTN_CLICKED;
 
-  if (shiftFunction == off)
+  if (shiftFunction == SHIFT_ON)
   {
     digitalWrite(BUTTON_TRACK_LED, true);
-    shiftFunction = switchTrackActive;
+    shiftFunction = SHIFT_ON;
   }
   else 
   {
     digitalWrite(BUTTON_TRACK_LED, false);
-    shiftFunction = off;
+    shiftFunction = SHIFT_OFF;
   }
 
-  shiftFunction = switchTrackActive;
+  shiftFunction = SHIFT_ON;
   lastTimeTrack = millis();
 }
+
