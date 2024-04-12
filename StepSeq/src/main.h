@@ -6,15 +6,15 @@
 // pin configuration
 const int ENC_PIN_A = 6;
 const int ENC_PIN_B = 7;
-const int MCP_PIN_INT_A = 26;
+const int MCP_PIN_INT_A = 29;       // changed! before 26
 const int MCP_PIN_INT_B = 28;
 const int SSD_PIN_RESET = 13;
 const int BUTTON_PLAY_PIN = 2;
-const int BUTTON_PLAY_LED = 38;
+const int BUTTON_PLAY_LED = 33;     // before 38
 const int BUTTON_TRACK_PIN = 3;
-const int BUTTON_TRACK_LED = 39;
+const int BUTTON_TRACK_LED = 34;    // before 39
 const int BUTTON_PATTERN_PIN = 4;
-const int BUTTON_PATTERN_LED = 40;
+const int BUTTON_PATTERN_LED = 35;  // before 40
 const int RESET_PIN = 26;
 // constants
 const uint8_t MIDI_START = 250;
@@ -50,7 +50,7 @@ void getPressedButtonId(uint8_t woGedrueckt);
 void selectInterrupt();
 // leds
 void seqTrackToLED(uint8_t trackNr);
-void seqLauflicht (byte schrittNr);
+void runLedEffect (byte schrittNr);
 
 // Pattern
 void updatePattern(int buttonId);

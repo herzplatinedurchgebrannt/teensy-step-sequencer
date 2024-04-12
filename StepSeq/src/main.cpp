@@ -9,43 +9,39 @@
 #include <Drumsi_Menu.h>
 #include <wiring.h>
 
-// encoder 
+// *** BUTTONS ***
+// shift registers
+MCP23017& mcp = MCP23017::getInstance();
+// button states
+ButtonState stepButtonStateA = BTN_OFF;
+ButtonState stepButtonStateB = BTN_OFF;
+ButtonState selectButtonState = BTN_OFF; 
+ButtonState optionButtonState = BTN_OFF;
+// timestamps for debouncing
+unsigned long mcpAStamp = 0;
+unsigned long mcpBStamp = 0;
+unsigned long pauseStamp = 0;
+unsigned long selectStamp = 0;
+
+// *** PLAYBACK LOGIC ***
+PlayerState playerState = PLAYER_PLAYING;
+// store state when midi note on was send
+int prevNotesPlayed[] = {false, false, false, false, false, false, false, false};
+int actTrack = 0;       // active track on sequencer
+int actStep = 0;        // active step on sequencer
+float tempoInMs = 250;  // time interval in ms
+// timestamp for time interval
+unsigned long tempoStamp = 0;
+
+// *** ROTARY ENCODER ***
 int encValue = HIGH;
 int encValueOld = HIGH;
+int lastReportedPos = 1; 
 volatile bool encButtonIsActive = false;
 unsigned long encButtonLastStamp = 0;
 volatile int encoderPos = 0;  
-int lastReportedPos = 1; 
 
-// buttons
-MCP23017& mcp = MCP23017::getInstance();
-
-ButtonState stepButtonStateA = BTN_OFF;
-ButtonState stepButtonStateB = BTN_OFF;
-ButtonState shiftButtonState = BTN_OFF; 
-ButtonState shiftPatternStateB = BTN_OFF;
-
-volatile bool mcpAPressed = false;
-volatile bool mcpBPressed = false;
-unsigned long mcpAStamp = 0;
-unsigned long mcpBStamp = 0;
-
-// playback
-IntervalTimer playbackTimer;
-PlayerState playerState = PLAYER_PLAYING;
-
-int prevNotesPlayed[] = {false, false, false, false, false, false, false, false};
-
-float tempoInMs = 250;
-int actTrack = 2;
-int actStep = 0;
-
-unsigned long pauseStamp = 0;
-unsigned long shiftAStamp = 0;
-unsigned long shiftBStamp = 0;
-unsigned long selectStamp = 0;
-unsigned long tempoStamp = 0;
-
+// MENU
 DisplayMenu& menu = DisplayMenu::getInstance();
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
 
@@ -57,7 +53,6 @@ void setup() {
   // i2c shift registers A & B
   mcp.begin();
   pinMode(MCP_PIN_INT_A, INPUT);
-  //attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonPressedMcpA, FALLING);
   attachInterrupt(MCP_PIN_INT_A, mcpAButtonPressedInterrupt, FALLING);
   mcp.write(MCP23017::ADDRESS_1, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
@@ -73,7 +68,6 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_1, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
   pinMode(MCP_PIN_INT_B, INPUT);
-  attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), mcpBButtonPressedInterrupt, FALLING);
   attachInterrupt(MCP_PIN_INT_B, mcpBButtonPressedInterrupt, FALLING);
   mcp.write(MCP23017::ADDRESS_2, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
@@ -89,22 +83,23 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_2, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
-  // play button 
+  // play button (1. button top left)
   pinMode(BUTTON_PLAY_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PLAY_PIN), pauseButtonPressed, FALLING);  
   pinMode(BUTTON_PLAY_LED, OUTPUT);
   digitalWrite(BUTTON_PLAY_LED, LOW);
 
-  // shift track button
+  // select button (2. button top left)
   pinMode(BUTTON_TRACK_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(BUTTON_TRACK_PIN), selectInterrupt, FALLING);  
   pinMode(BUTTON_TRACK_LED, OUTPUT);
 
-  // shift pattern button
+  // option pattern button (3. button top left)
   pinMode(BUTTON_PATTERN_PIN, OUTPUT); 
   digitalWrite(BUTTON_PATTERN_LED, LOW);
 
   // internal teensy led
+  // not used atm
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);
 
@@ -124,6 +119,8 @@ void loop() {
   REPLACE MILLIS BY MICROS
 
   */
+
+  // time interval 
   if (millis() - tempoStamp >= tempoInMs)
   {
     tempoStamp = millis();
@@ -132,7 +129,7 @@ void loop() {
     {
       // led sequence
       seqTrackToLED(actTrack);
-      seqLauflicht(actStep);
+      runLedEffect(actStep);
 
       // send midi notes to host
       sendMidiNotes();
@@ -153,7 +150,7 @@ void loop() {
     int buttonId = identifyStepButton(1);
 
     // handle function logic
-    switch (shiftButtonState)
+    switch (selectButtonState)
     {
       case BTN_OFF:
         // no shift function selected
@@ -163,7 +160,7 @@ void loop() {
       case BTN_PRESSED:
         // change active track
         actTrack = buttonId;
-        shiftButtonState = BTN_OFF;
+        selectButtonState = BTN_OFF;
         digitalWrite(BUTTON_TRACK_LED, false);
         break; 
       default:
@@ -192,7 +189,7 @@ void loop() {
     int buttonId = identifyStepButton(2);
 
     // handle function logic
-    switch (shiftButtonState)
+    switch (selectButtonState)
     {
       case BTN_OFF:
         // no shift function selected
@@ -222,22 +219,13 @@ void loop() {
     }
   }
 
-  if (shiftButtonState == BTN_CLICKED) 
+  if (selectButtonState == BTN_CLICKED) 
   {
-    shiftButtonState = BTN_PRESSED;
+    selectButtonState = BTN_PRESSED;
   }
 }
 
 
-
-
-/*
-            TO DO: 
-  create note off logic
-  on next playback send note off
-  send old active notes off when 
-  stopping playback
-*/
 void sendMidiNotes(){
   for (int i=0; i < N_TRACKS; i++)
   {
@@ -260,7 +248,7 @@ void sendMidiNotes(){
 }
 
 // Invertiert den aktuellen LED-Status, damit ein Lauflichteffekt entsteht
-void seqLauflicht (byte schrittNr){
+void runLedEffect (byte schrittNr){
   if (pattern[actTrack][schrittNr] == 1)
   { 
     writeLed(schrittNr,0);
@@ -424,14 +412,14 @@ void selectInterrupt()
 {
   if ((millis() - selectStamp < 50)) return;
 
-  if (shiftButtonState == BTN_OFF)
+  if (selectButtonState == BTN_OFF)
   {
-    shiftButtonState = BTN_PRESSED;
+    selectButtonState = BTN_PRESSED;
     digitalWrite(BUTTON_TRACK_LED, true);
   }
   else 
   {
-    shiftButtonState = BTN_OFF;
+    selectButtonState = BTN_OFF;
     digitalWrite(BUTTON_TRACK_LED, false);
   }
 
