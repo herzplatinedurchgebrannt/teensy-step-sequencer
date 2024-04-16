@@ -67,4 +67,6 @@ void seqNoteSchreiben(byte noteInBits, int mcpNummer);
 
 void sendMidiNotes();
 
+void testdrawtext(char *text, uint16_t color);
+
 #endif
