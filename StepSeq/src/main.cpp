@@ -5,9 +5,6 @@
 #include <Drumsi_Pattern.h>
 #include <Drumsi_Menu.h>
 #include <wiring.h>
-
-// ************************************************
-// boilerplate stuff from teensy & st7735 example
 #include <Adafruit_GFX.h> 
 #include <Adafruit_ST7735.h> 
 #include <SPI.h>
@@ -17,27 +14,12 @@
     #define F(string_literal) string_literal
 #endif
 
-int sclk = 13;  // SCLK can also use pin 14
-int mosi = 11;  // MOSI can also use pin 7
-int cs   = 10;  // CS & DC can use pins 2, 6, 9, 10, 15, 20, 21, 22, 23
-int dc   = 9;   //  but certain pairs must NOT be used: 2+10, 6+9, 20+23, 21+22
-int rst  = 8;   // RST can use any pin
-int sdcs = 4;   // CS for SD card, can use any pin
-
-// Option 1: use any pins but a little slower
-//Adafruit_ST7735 tft = Adafruit_ST7735(cs, dc, mosi, sclk, rst);
-
-// Option 2: must use the hardware SPI pins
-// (for UNO thats sclk = 13 and sid = 11) and pin 10 must be
-// an output. This is much faster - also required if you want
-// to use the microSD card (see the image drawing example)
-Adafruit_ST7735 tft = Adafruit_ST7735(cs, dc, rst);
-float p = 3.1415926;
-// ***********************************************
+Adafruit_ST7735 tft = Adafruit_ST7735(ST_CS, ST_DC, ST_RST);
 
 
-
-// *** BUTTONS ***
+// ******************************************
+// *********** SEQUENCER BUTTONS ************
+// ******************************************
 // shift registers
 MCP23017& mcp = MCP23017::getInstance();
 // button states
@@ -71,13 +53,15 @@ volatile int encoderPos = 0;
 
 // MENU
 DisplayMenu& menu = DisplayMenu::getInstance();
-//U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
 
 void setup() {
 
   // serial
   Serial.begin(115200); 
 
+  // ******************************************
+  // ******** SEQUENCER BUTTONS SETUP *********
+  // ******************************************
   // i2c shift registers A & B
   mcp.begin();
   pinMode(MCP_PIN_INT_A, INPUT);
@@ -111,6 +95,9 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_2, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
+  // ******************************************
+  // ******** FUNCTION BUTTONS SETUP **********
+  // ******************************************
   // play button (1. button top left)
   pinMode(BUTTON_PLAY_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PLAY_PIN), pauseButtonPressed, FALLING);  
@@ -131,34 +118,20 @@ void setup() {
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);
 
-  /************  Reset PIN Setup  *************/
+  // reset pins
   pinMode(RESET_PIN, INPUT);
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT);
   pinMode(ENC_PIN_A, INPUT);
   pinMode(ENC_PIN_B, INPUT); 
 
-  // st7735 stuff
-  pinMode(sdcs, INPUT_PULLUP);  // don't touch the SD card
 
-  // If your TFT's plastic wrap has a Black Tab, use the following:
+  // ******************************************
+  // ************* DISPLAY SETUP **************
+  // ******************************************
+  pinMode(ST_SDCS, INPUT_PULLUP);  // don't touch the SD card
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-  // If your TFT's plastic wrap has a Red Tab, use the following:
-  //tft.initR(INITR_REDTAB);   // initialize a ST7735R chip, red tab
-  // If your TFT's plastic wrap has a Green Tab, use the following:
-  //tft.initR(INITR_GREENTAB); // initialize a ST7735R chip, green tab
-
-  uint16_t time = millis();
   tft.fillScreen(ST7735_BLACK);
-  time = millis() - time;
-
-  Serial.println(time, DEC);
-  delay(500);
-
-  // large block of text
-  tft.fillScreen(ST7735_BLACK);
-  //testdrawtext("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa, fringilla sed malesuada et, malesuada sit amet turpis. Sed porttitor neque ut ante pretium vitae malesuada nunc bibendum. Nullam aliquet ultrices massa eu hendrerit. Ut sed nisi lorem. In vestibulum purus a tortor imperdiet posuere. ", ST7735_WHITE);
-  delay(1000);
 } 
 
 

@@ -16,6 +16,12 @@ const int BUTTON_TRACK_LED = 34;    // before 39
 const int BUTTON_PATTERN_PIN = 4;
 const int BUTTON_PATTERN_LED = 35;  // before 40
 const int RESET_PIN = 26;
+const int ST_SCLK = 13;  // SCLK can also use pin 14
+const int ST_MOSI = 11;  // MOSI can also use pin 7
+const int ST_CS   = 10;  // CS & DC can use pins 2, 6, 9, 10, 15, 20, 21, 22, 23
+const int ST_DC   = 9;   //  but certain pairs must NOT be used: 2+10, 6+9, 20+23, 21+22
+const int ST_RST  = 8;   // RST can use any pin
+const int ST_SDCS = 4;   // CS for SD card, can use any pin
 // constants
 const uint8_t MIDI_START = 250;
 const uint8_t MIDI_CONTINUE = 251;
