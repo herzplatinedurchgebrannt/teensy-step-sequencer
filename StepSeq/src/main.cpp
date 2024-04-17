@@ -37,8 +37,10 @@ unsigned long selectStamp = 0;
 PlayerState playerState = PLAYER_PLAYING;
 // store state when midi note on was send
 int prevNotesPlayed[] = {false, false, false, false, false, false, false, false};
-int actTrack = 0;       // active track on sequencer
-int actStep = 0;        // active step on sequencer
+int actTrack = 0;       // active track of sequencer
+int actStep = 0;        // active step of sequencer
+int actPattern = 0;     // active pattern of sequencer
+int actBpm = 120;
 float tempoInMs = 250;  // time interval in ms
 // timestamp for time interval
 unsigned long tempoStamp = 0;
@@ -132,6 +134,13 @@ void setup() {
   pinMode(ST_SDCS, INPUT_PULLUP);  // don't touch the SD card
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
   tft.fillScreen(ST7735_BLACK);
+  tft.setRotation(3);
+
+  drawPlayerState();
+  drawTrack();
+  drawPattern();
+  drawTempo();
+  drawSequencer();
 } 
 
 
@@ -172,9 +181,6 @@ void loop() {
   if (stepButtonStateA == BTN_CLICKED){
     int buttonId = identifyStepButton(1);
 
-
-    char test[10] = "Button";
-
     // handle function logic
     switch (selectButtonState)
     {
@@ -188,11 +194,8 @@ void loop() {
         actTrack = buttonId;
         selectButtonState = BTN_OFF;
         digitalWrite(BUTTON_TRACK_LED, false);
-
-        itoa(buttonId, test, 8);
-
-        tft.fillScreen(ST7735_BLACK);
-        testdrawtext(test, ST7735_WHITE);
+        //drawPlayerState();
+        drawTrack();
         break; 
       default:
         break;
@@ -314,11 +317,14 @@ void pauseButtonPressed(){
     digitalWrite(BUTTON_PLAY_LED, false);
     playerState = PLAYER_PLAYING;
     Serial.println("START");
+    drawPlayerState();
+
   } 
   else{
     digitalWrite(BUTTON_PLAY_LED, true);
     playerState = PLAYER_STOPPED;
     Serial.println("STOP");
+    drawPlayerState();
   }
 }
 
@@ -329,14 +335,27 @@ void updateTempo(float bpm){
   tempoInMs = (1000.000/(bpm/60*noteLength));
 }
 
-void encoderSwitch(){
-  if (millis() - encButtonLastStamp > 300)
-  {
-    encButtonIsActive = !encButtonIsActive;
-    digitalWrite(40, encButtonIsActive);
-    encButtonLastStamp = millis();
-  }
-}
+// void encoderSwitch(){
+//   if (millis() - encButtonLastStamp > 300)
+//   {
+//     encButtonIsActive = !encButtonIsActive;
+//     digitalWrite(40, encButtonIsActive);
+//     encButtonLastStamp = millis();
+//   }
+// }
+
+// void doEncoderA()
+// {
+//   if ( rotating ) /*delay (1)*/;  // wait a little until the bouncing is done
+//   if( digitalRead(encoderPinA) != A_set ) 
+//   {  // debounce once more
+//     A_set = !A_set;
+//     // adjust counter + if A leads B
+//     if ( A_set && !B_set ) 
+//       encoderPos += 1;
+//     rotating = false;  // no more debouncing until loop() hits again
+//   }
+// }
 
 /// @brief interrupt when button of register A
 /// was pressed. sets a flag which can be
@@ -466,14 +485,105 @@ void selectInterrupt()
   selectStamp = millis();
 }
 
-void testdrawtext(char *text, uint16_t color) {
-  tft.setCursor(0, 0);
-  tft.setTextColor(color);
+void drawPlayerState() {
+  tft.setCursor(3, 4);
+  tft.setTextSize(1);
+  tft.setTextColor(ST7735_WHITE);
+  tft.print(ST_STR_PLAYER);
+  tft.fillRect(64, 0, 64, 18, ST7735_BLUE);
+  tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
-  tft.print(text);
+  tft.setCursor(68, 4);
+
+  switch (playerState)
+  {
+    case PLAYER_PLAYING:
+      tft.print("PLAYING");
+      break;
+    case PLAYER_STOPPED:
+      tft.print("STOPPED");
+      break; 
+    default:
+      break;
+    }
 }
 
+void drawTrack() {
+  char num[2];
 
+  itoa(actTrack, num, 10);
+  
+  tft.setCursor(3, 24);
+  tft.setTextSize(1);
+  tft.setTextColor(ST7735_WHITE);
+  tft.print(ST_STR_TRACK);
+  tft.fillRect(64, 20, 64, 18, ST7735_RED);
+  tft.setTextColor(ST7735_BLACK);
+  tft.setTextWrap(true);
+  tft.setCursor(68, 24);
+  tft.print(num);
+}
 
+void drawPattern() {
+  char num[2];
 
+  itoa(actPattern, num, 10);
+  
+  tft.setCursor(3, 44);
+  tft.setTextSize(1);
+  tft.setTextColor(ST7735_WHITE);
+  tft.print(ST_STR_PATTERN);
+  tft.fillRect(64, 40, 64, 18, ST7735_GREEN);
+  tft.setTextColor(ST7735_BLACK);
+  tft.setTextWrap(true);
+  tft.setCursor(68, 44);
+  tft.print(num);
+}
 
+void drawTempo() {
+  char num[4];
+
+  itoa(actBpm, num, 10);
+  
+  tft.setCursor(3, 64);
+  tft.setTextSize(1);
+  tft.setTextColor(ST7735_WHITE);
+  tft.print(ST_STR_BPM);
+  tft.fillRect(64, 60, 64, 18, ST7735_ORANGE);
+  tft.setTextColor(ST7735_BLACK);
+  tft.setTextWrap(true);
+  tft.setCursor(68, 64);
+  tft.print(num);
+}
+
+void drawShiftFunction() {
+  tft.setCursor(0, 0);
+  tft.setTextSize(2);
+  tft.setTextColor(ST7735_WHITE);
+  tft.setTextWrap(true);
+}
+
+void drawSequencer(){
+
+  int x0 = 0;
+  int y0 = 90;
+  int w = 9;
+  int h = 9;
+
+  tft.drawRect( 0, y0, w, h, ST7735_CYAN);
+  tft.drawRect(10, y0, w, h, ST7735_CYAN);
+  tft.drawRect(20, y0, w, h, ST7735_CYAN);
+  tft.drawRect(30, y0, w, h, ST7735_CYAN);
+  tft.drawRect(40, y0, w, h, ST7735_CYAN);
+  tft.drawRect(50, y0, w, h, ST7735_CYAN);
+  tft.drawRect(60, y0, w, h, ST7735_CYAN);
+  tft.drawRect(70, y0, w, h, ST7735_CYAN);
+  tft.drawRect(80, y0, w, h, ST7735_CYAN);
+  tft.drawRect(90, y0, w, h, ST7735_CYAN);
+  tft.drawRect(100, y0, w, h, ST7735_CYAN);
+  tft.drawRect(110, y0, w, h, ST7735_CYAN);
+  tft.drawRect(120, y0, w, h, ST7735_CYAN);
+  tft.drawRect(130, y0, w, h, ST7735_CYAN);
+  tft.drawRect(140, y0, w, h, ST7735_CYAN);
+  tft.drawRect(150, y0, w, h, ST7735_CYAN);
+}

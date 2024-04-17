@@ -22,6 +22,10 @@ const int ST_CS   = 10;  // CS & DC can use pins 2, 6, 9, 10, 15, 20, 21, 22, 23
 const int ST_DC   = 9;   //  but certain pairs must NOT be used: 2+10, 6+9, 20+23, 21+22
 const int ST_RST  = 8;   // RST can use any pin
 const int ST_SDCS = 4;   // CS for SD card, can use any pin
+const char ST_STR_PLAYER[9] = "STATE";
+const char ST_STR_TRACK[9] = "TRACK";
+const char ST_STR_PATTERN[9] = "PATTERN";
+const char ST_STR_BPM[9] = "BPM";
 // constants
 const uint8_t MIDI_START = 250;
 const uint8_t MIDI_CONTINUE = 251;
@@ -73,6 +77,11 @@ void seqNoteSchreiben(byte noteInBits, int mcpNummer);
 
 void sendMidiNotes();
 
-void testdrawtext(char *text, uint16_t color);
+void drawPlayerState();
+void drawTempo();
+void drawTrack();
+void drawPattern();
+void drawShiftFunction();
+void drawSequencer();
 
 #endif
