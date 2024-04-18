@@ -134,13 +134,14 @@ void setup() {
   pinMode(ST_SDCS, INPUT_PULLUP);  // don't touch the SD card
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
   tft.fillScreen(ST7735_BLACK);
-  tft.setRotation(3);
+  tft.setRotation(1);
 
   drawPlayerState();
-  drawTrack();
-  drawPattern();
+  drawTrackNum();
+  drawPatternNum();
   drawTempo();
-  drawSequencerGrid();
+  drawSequencerGrid(10);
+  drawActiveTrack();
   drawActiveSteps();
 } 
 
@@ -163,6 +164,7 @@ void loop() {
       // led sequence
       seqTrackToLED(actTrack);
       runLedEffect(actStep);
+      drawActiveSteps();
 
       // send midi notes to host
       sendMidiNotes();
@@ -186,17 +188,19 @@ void loop() {
     switch (selectButtonState)
     {
       case BTN_OFF:
-        // no shift function selected
+        // select button not pressed
         // default step sequencing
         updatePattern(buttonId);
+        drawActiveSteps();
         break;
       case BTN_PRESSED:
         // change active track
         actTrack = buttonId;
         selectButtonState = BTN_OFF;
         digitalWrite(BTN_TRACK_LED, false);
-        //drawPlayerState();
-        drawTrack();
+        drawSequencerGrid(0);
+        drawTrackNum();
+        drawActiveTrack();
         break; 
       default:
         break;
@@ -209,7 +213,7 @@ void loop() {
 
   if (stepButtonStateA == BTN_PRESSED)
   {
-    // check if pin of mcp A is released
+    // check if pin of mcp A is actually released
     if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
     {
       stepButtonStateA = BTN_OFF;
@@ -227,18 +231,22 @@ void loop() {
     switch (selectButtonState)
     {
       case BTN_OFF:
-        // no shift function selected
+        // select button not pressed
         // default step sequencing
         updatePattern(buttonId);
+        drawActiveSteps();
         break;
       case BTN_PRESSED:
         // change active pattern  
         // ...
+        actPattern = buttonId - 8;
+        selectButtonState = BTN_OFF;
+        digitalWrite(BTN_TRACK_LED, false);
+        drawPatternNum();
         break;  
       default:
         break;
     }
-
     // logic handled, set state to holding
     // wait for release button
     stepButtonStateB = BTN_PRESSED;
@@ -246,7 +254,7 @@ void loop() {
 
   if (stepButtonStateB == BTN_PRESSED)
   {
-    // check if pin of mcp B is released
+    // check if pin of mcp B is actually released
     if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50)
     {
       stepButtonStateB = BTN_OFF;
@@ -259,6 +267,9 @@ void loop() {
     selectButtonState = BTN_PRESSED;
   }
 }
+
+
+
 
 /// @brief in case there is a midi host like a daw
 /// available, send midi notes
@@ -487,57 +498,57 @@ void selectInterrupt()
 }
 
 void drawPlayerState() {
-  tft.setCursor(3, 4);
+  // tft.setCursor(3, 4);
   tft.setTextSize(1);
-  tft.setTextColor(ST7735_WHITE);
-  tft.print(ST_STR_PLAYER);
-  tft.fillRect(64, 0, 64, 18, ST7735_BLUE);
+  // tft.setTextColor(ST7735_WHITE);
+  // tft.print(ST_STR_PLAYER);
+  tft.fillRect(0, 0, 40, 20, ST7735_BLUE);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
-  tft.setCursor(68, 4);
+  tft.setCursor(8, 8);
 
   switch (playerState)
   {
     case PLAYER_PLAYING:
-      tft.print("PLAYING");
+      tft.print("PLAY");
       break;
     case PLAYER_STOPPED:
-      tft.print("STOPPED");
+      tft.print("STOP");
       break; 
     default:
       break;
     }
 }
 
-void drawTrack() {
+void drawTrackNum() {
   char num[2];
 
   itoa(actTrack, num, 10);
   
-  tft.setCursor(3, 24);
+  // tft.setCursor(48, 12);
   tft.setTextSize(1);
-  tft.setTextColor(ST7735_WHITE);
-  tft.print(ST_STR_TRACK);
-  tft.fillRect(64, 20, 64, 18, ST7735_RED);
+  // tft.setTextColor(ST7735_BLACK);
+  // tft.print(ST_STR_TRACK);
+  tft.fillRect(40, 0, 40, 20, ST7735_RED);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
-  tft.setCursor(68, 24);
+  tft.setCursor(56, 8);
   tft.print(num);
 }
 
-void drawPattern() {
+void drawPatternNum() {
   char num[2];
 
   itoa(actPattern, num, 10);
   
-  tft.setCursor(3, 44);
+  // tft.setCursor(3, 44);
   tft.setTextSize(1);
-  tft.setTextColor(ST7735_WHITE);
-  tft.print(ST_STR_PATTERN);
-  tft.fillRect(64, 40, 64, 18, ST7735_GREEN);
+  // tft.setTextColor(ST7735_WHITE);
+  // tft.print(ST_STR_PATTERN);
+  tft.fillRect(80, 0, 40, 20, ST7735_GREEN);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
-  tft.setCursor(68, 44);
+  tft.setCursor(96, 8);
   tft.print(num);
 }
 
@@ -546,14 +557,14 @@ void drawTempo() {
 
   itoa(actBpm, num, 10);
   
-  tft.setCursor(3, 64);
+  // tft.setCursor(3, 64);
   tft.setTextSize(1);
-  tft.setTextColor(ST7735_WHITE);
-  tft.print(ST_STR_BPM);
-  tft.fillRect(64, 60, 64, 18, ST7735_ORANGE);
+  // tft.setTextColor(ST7735_WHITE);
+  // tft.print(ST_STR_BPM);
+  tft.fillRect(120, 0, 40, 20, ST7735_ORANGE);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
-  tft.setCursor(68, 64);
+  tft.setCursor(130, 8);
   tft.print(num);
 }
 
@@ -564,7 +575,7 @@ void drawShiftFunction() {
   tft.setTextWrap(true);
 }
 
-void drawSequencerGrid(){
+void drawSequencerGrid(int delayInMs = 0){
   int x = 0;  
   int y = 0;   
 
@@ -574,10 +585,24 @@ void drawSequencerGrid(){
     {
       tft.drawRect(x + ST_X0_OFFSET, y + ST_Y0_OFFSET, ST_STEP_WIDTH, ST_STEP_HEIGHT, ST7735_CYAN);
       x = x + ST_STEP_WIDTH + ST_MARGIN_1PX;
+      delay(delayInMs);
     }
     x = 0;
     y = y + ST_STEP_HEIGHT + ST_MARGIN_1PX;
   }
+}
+
+void drawActiveTrack(){
+  int x = 0;  
+  int y = actTrack * (ST_STEP_HEIGHT + ST_MARGIN_1PX);  
+
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    tft.drawRect(x + ST_X0_OFFSET, y + ST_Y0_OFFSET, ST_STEP_WIDTH, ST_STEP_HEIGHT, ST7735_YELLOW);
+    x = x + ST_STEP_WIDTH + ST_MARGIN_1PX;
+  }
+  x = 0;
+  y = y + ST_STEP_HEIGHT + ST_MARGIN_1PX;
 }
 
 void drawActiveSteps(){
@@ -588,6 +613,9 @@ void drawActiveSteps(){
       if (pattern[i][j] == true){
         drawSequencerStep(i, j, true);
       }
+      else{
+        drawSequencerStep(i, j, false);
+      }
     }
   }
 }
@@ -597,5 +625,11 @@ void drawSequencerStep(int track, int step, bool fill){
   int x = step * (ST_STEP_WIDTH + ST_MARGIN_1PX) + ST_MARGIN_1PX;
   int y = track * (ST_STEP_HEIGHT + ST_MARGIN_1PX) + ST_MARGIN_1PX;
 
-  tft.fillRect(ST_X0_OFFSET + x, ST_Y0_OFFSET + y, ST_STEP_WIDTH - 2, ST_STEP_HEIGHT - 2, ST7735_RED);
+  if (fill){
+    tft.fillRect(ST_X0_OFFSET + x, ST_Y0_OFFSET + y, ST_STEP_WIDTH - 2, ST_STEP_HEIGHT - 2, ST7735_RED);
+  }
+  else{
+  tft.fillRect(ST_X0_OFFSET + x, ST_Y0_OFFSET + y, ST_STEP_WIDTH - 2, ST_STEP_HEIGHT - 2, ST7735_BLACK);
+
+  }
 }

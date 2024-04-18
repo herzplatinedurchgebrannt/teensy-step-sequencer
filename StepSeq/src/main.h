@@ -27,11 +27,11 @@ const int ST_SDCS = 4;   // CS for SD card, can use any pin
 const int N_TRACKS = 8;
 const int N_STEPS = 16;
 const char ST_STR_PLAYER[9] = "STATE";    
-const char ST_STR_TRACK[9] = "TRACK";     
-const char ST_STR_PATTERN[9] = "PATTERN"; 
+const char ST_STR_TRACK[9] = "TR";     
+const char ST_STR_PATTERN[9] = "PA"; 
 const char ST_STR_BPM[9] = "BPM";         
 const int ST_X0_OFFSET = 0;   
-const int ST_Y0_OFFSET = 90;  
+const int ST_Y0_OFFSET = 30;  
 const int ST_MARGIN_1PX = 1; 
 const int ST_STEP_WIDTH = 9;  
 const int ST_STEP_HEIGHT = 9; 
@@ -81,10 +81,11 @@ void sendMidiNotes();
 
 void drawPlayerState();
 void drawTempo();
-void drawTrack();
-void drawPattern();
+void drawTrackNum();
+void drawPatternNum();
 void drawShiftFunction();
-void drawSequencerGrid();
+void drawSequencerGrid(int delayInMs);
+void drawActiveTrack();
 void drawActiveSteps();
 void drawSequencerStep(int track, int step, bool fill);
 #endif
