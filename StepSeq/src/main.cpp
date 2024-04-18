@@ -101,19 +101,19 @@ void setup() {
   // ******** FUNCTION BUTTONS SETUP **********
   // ******************************************
   // play button (1. button top left)
-  pinMode(BUTTON_PLAY_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PLAY_PIN), pauseButtonPressed, FALLING);  
-  pinMode(BUTTON_PLAY_LED, OUTPUT);
-  digitalWrite(BUTTON_PLAY_LED, LOW);
+  pinMode(BTN_PLAY_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BTN_PLAY_PIN), pauseButtonPressed, FALLING);  
+  pinMode(BTN_PLAY_LED, OUTPUT);
+  digitalWrite(BTN_PLAY_LED, LOW);
 
   // select button (2. button top left)
-  pinMode(BUTTON_TRACK_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_TRACK_PIN), selectInterrupt, FALLING);  
-  pinMode(BUTTON_TRACK_LED, OUTPUT);
+  pinMode(BTN_TRACK_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BTN_TRACK_PIN), selectInterrupt, FALLING);  
+  pinMode(BTN_TRACK_LED, OUTPUT);
 
   // option pattern button (3. button top left)
-  pinMode(BUTTON_PATTERN_PIN, OUTPUT); 
-  digitalWrite(BUTTON_PATTERN_LED, LOW);
+  pinMode(BTN_PATTERN_PIN, OUTPUT); 
+  digitalWrite(BTN_PATTERN_LED, LOW);
 
   // internal teensy led
   // not used atm
@@ -121,7 +121,7 @@ void setup() {
   digitalWrite(13, LOW);
 
   // reset pins
-  pinMode(RESET_PIN, INPUT);
+  pinMode(RST_PIN, INPUT);
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT);
   pinMode(ENC_PIN_A, INPUT);
@@ -140,7 +140,8 @@ void setup() {
   drawTrack();
   drawPattern();
   drawTempo();
-  drawSequencer();
+  drawSequencerGrid();
+  drawActiveSteps();
 } 
 
 
@@ -193,7 +194,7 @@ void loop() {
         // change active track
         actTrack = buttonId;
         selectButtonState = BTN_OFF;
-        digitalWrite(BUTTON_TRACK_LED, false);
+        digitalWrite(BTN_TRACK_LED, false);
         //drawPlayerState();
         drawTrack();
         break; 
@@ -314,14 +315,14 @@ void pauseButtonPressed(){
 
   if (playerState == PLAYER_STOPPED){
     actStep = 0;
-    digitalWrite(BUTTON_PLAY_LED, false);
+    digitalWrite(BTN_PLAY_LED, false);
     playerState = PLAYER_PLAYING;
     Serial.println("START");
     drawPlayerState();
 
   } 
   else{
-    digitalWrite(BUTTON_PLAY_LED, true);
+    digitalWrite(BTN_PLAY_LED, true);
     playerState = PLAYER_STOPPED;
     Serial.println("STOP");
     drawPlayerState();
@@ -474,12 +475,12 @@ void selectInterrupt()
   if (selectButtonState == BTN_OFF)
   {
     selectButtonState = BTN_PRESSED;
-    digitalWrite(BUTTON_TRACK_LED, true);
+    digitalWrite(BTN_TRACK_LED, true);
   }
   else 
   {
     selectButtonState = BTN_OFF;
-    digitalWrite(BUTTON_TRACK_LED, false);
+    digitalWrite(BTN_TRACK_LED, false);
   }
 
   selectStamp = millis();
@@ -563,27 +564,38 @@ void drawShiftFunction() {
   tft.setTextWrap(true);
 }
 
-void drawSequencer(){
+void drawSequencerGrid(){
+  int x = 0;  
+  int y = 0;   
 
-  int x0 = 0;
-  int y0 = 90;
-  int w = 9;
-  int h = 9;
+  for (int i = 0; i < N_TRACKS; i++)
+  {
+    for (int j = 0; j < N_STEPS; j++)
+    {
+      tft.drawRect(x + ST_X0_OFFSET, y + ST_Y0_OFFSET, ST_STEP_WIDTH, ST_STEP_HEIGHT, ST7735_CYAN);
+      x = x + ST_STEP_WIDTH + ST_MARGIN_1PX;
+    }
+    x = 0;
+    y = y + ST_STEP_HEIGHT + ST_MARGIN_1PX;
+  }
+}
 
-  tft.drawRect( 0, y0, w, h, ST7735_CYAN);
-  tft.drawRect(10, y0, w, h, ST7735_CYAN);
-  tft.drawRect(20, y0, w, h, ST7735_CYAN);
-  tft.drawRect(30, y0, w, h, ST7735_CYAN);
-  tft.drawRect(40, y0, w, h, ST7735_CYAN);
-  tft.drawRect(50, y0, w, h, ST7735_CYAN);
-  tft.drawRect(60, y0, w, h, ST7735_CYAN);
-  tft.drawRect(70, y0, w, h, ST7735_CYAN);
-  tft.drawRect(80, y0, w, h, ST7735_CYAN);
-  tft.drawRect(90, y0, w, h, ST7735_CYAN);
-  tft.drawRect(100, y0, w, h, ST7735_CYAN);
-  tft.drawRect(110, y0, w, h, ST7735_CYAN);
-  tft.drawRect(120, y0, w, h, ST7735_CYAN);
-  tft.drawRect(130, y0, w, h, ST7735_CYAN);
-  tft.drawRect(140, y0, w, h, ST7735_CYAN);
-  tft.drawRect(150, y0, w, h, ST7735_CYAN);
+void drawActiveSteps(){
+  for (int i=0; i < N_TRACKS; i++)
+  {
+    for (int j = 0; j < N_STEPS; j++)
+    {
+      if (pattern[i][j] == true){
+        drawSequencerStep(i, j, true);
+      }
+    }
+  }
+}
+
+void drawSequencerStep(int track, int step, bool fill){
+
+  int x = step * (ST_STEP_WIDTH + ST_MARGIN_1PX) + ST_MARGIN_1PX;
+  int y = track * (ST_STEP_HEIGHT + ST_MARGIN_1PX) + ST_MARGIN_1PX;
+
+  tft.fillRect(ST_X0_OFFSET + x, ST_Y0_OFFSET + y, ST_STEP_WIDTH - 2, ST_STEP_HEIGHT - 2, ST7735_RED);
 }
