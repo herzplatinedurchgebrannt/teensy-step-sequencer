@@ -1,66 +1,72 @@
 #include <main.h>
 #include <Arduino.h>
 #include <Wire.h>
-#include <U8glib.h>
-#include <Adafruit_I2CDevice.h>
-#include <Adafruit_SSD1306.h>
 #include <Drumsi_MCP23017.h>
 #include <Drumsi_Pattern.h>
 #include <Drumsi_Menu.h>
 #include <wiring.h>
+#include <Adafruit_GFX.h> 
+#include <Adafruit_ST7735.h> 
+#include <SPI.h>
 
-// encoder 
+#if defined(__SAM3X8E__)
+    #undef __FlashStringHelper::F(string_literal)
+    #define F(string_literal) string_literal
+#endif
+
+Adafruit_ST7735 tft = Adafruit_ST7735(ST_CS, ST_DC, ST_RST);
+
+
+// ******************************************
+// *********** SEQUENCER BUTTONS ************
+// ******************************************
+// shift registers
+MCP23017& mcp = MCP23017::getInstance();
+// button states
+ButtonState stepButtonStateA = BTN_OFF;
+ButtonState stepButtonStateB = BTN_OFF;
+ButtonState selectButtonState = BTN_OFF; 
+ButtonState optionButtonState = BTN_OFF;
+// timestamps for debouncing
+unsigned long mcpAStamp = 0;
+unsigned long mcpBStamp = 0;
+unsigned long pauseStamp = 0;
+unsigned long selectStamp = 0;
+
+// *** PLAYBACK LOGIC ***
+PlayerState playerState = PLAYER_PLAYING;
+// store state when midi note on was send
+int prevNotesPlayed[] = {false, false, false, false, false, false, false, false};
+int actTrack = 0;       // active track of sequencer
+int actStep = 0;        // active step of sequencer
+int actPattern = 0;     // active pattern of sequencer
+int actBpm = 120;
+float tempoInMs = 250;  // time interval in ms
+// timestamp for time interval
+unsigned long tempoStamp = 0;
+
+// *** ROTARY ENCODER ***
 int encValue = HIGH;
 int encValueOld = HIGH;
+int lastReportedPos = 1; 
 volatile bool encButtonIsActive = false;
 unsigned long encButtonLastStamp = 0;
 volatile int encoderPos = 0;  
-int lastReportedPos = 1; 
 
-// buttons
-MCP23017& mcp = MCP23017::getInstance();
-
-ButtonState stepButtonStateA = released;
-ButtonState stepButtonStateB = released;
-ButtonState shiftTrackState = released; 
-ButtonState shiftPatternStateB = released;
-
-volatile bool mcpAPressed = false;
-volatile bool mcpBPressed = false;
-unsigned long mcpAStamp = 0;
-unsigned long mcpBStamp = 0;
-
-// playback
-IntervalTimer playbackTimer;
-ShiftFunction shiftFunction = off;
-PlayerState playerState = playing;
-
-int prevNotesPlayed[] = {false, false, false, false, false, false, false, false};
-
-float tempoInMs = 250;
-int actTrack = 2;
-int actStep = 0;
-
-
-unsigned long pauseStamp = 0;
-unsigned long shiftAStamp = 0;
-unsigned long shiftBStamp = 0;
-unsigned long lastTimeTrack = 0;
-unsigned long tempoStamp = 0;
-
+// MENU
 DisplayMenu& menu = DisplayMenu::getInstance();
-U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(10, 9, 12, 11, 13); // SW SPI Com: SCK = 10, MOSI = 9, CS = 12, DC = 11, RST = 13
-
 
 void setup() {
 
   // serial
   Serial.begin(115200); 
 
+  // ******************************************
+  // ******** SEQUENCER BUTTONS SETUP *********
+  // ******************************************
   // i2c shift registers A & B
   mcp.begin();
   pinMode(MCP_PIN_INT_A, INPUT);
-  //attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_A), buttonPressedMcpA, FALLING);
   attachInterrupt(MCP_PIN_INT_A, mcpAButtonPressedInterrupt, FALLING);
   mcp.write(MCP23017::ADDRESS_1, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
@@ -76,7 +82,6 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_1, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_1, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
   pinMode(MCP_PIN_INT_B, INPUT);
-  attachInterrupt(digitalPinToInterrupt(MCP_PIN_INT_B), mcpBButtonPressedInterrupt, FALLING);
   attachInterrupt(MCP_PIN_INT_B, mcpBButtonPressedInterrupt, FALLING);
   mcp.write(MCP23017::ADDRESS_2, MCP23017::IODIRA,   B00000000);    // IO Direction Register, 1=Input, 0=Output, LEDs als Output
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPIOA,    B11111111);    // LEDs anschalten
@@ -92,31 +97,52 @@ void setup() {
   mcp.write(MCP23017::ADDRESS_2, MCP23017::DEFVALB,  B11111111);   // Default Value Register: Wenn der Wert im GPIO-Register von diesem Wert abweicht, wird ein Interrupt ausgelöst. In diesem Fall lösen die Interrupts bei einem LOW Signal aus -> =0
   mcp.write(MCP23017::ADDRESS_2, MCP23017::GPPUB,    B11111111);   // Pull-up Widerstände für Buttons aktivieren
 
-  // play button 
-  pinMode(BUTTON_PLAY_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PLAY_PIN), pauseButtonPressed, FALLING);  
-  pinMode(BUTTON_PLAY_LED, OUTPUT);
-  digitalWrite(BUTTON_PLAY_LED, LOW);
+  // ******************************************
+  // ******** FUNCTION BUTTONS SETUP **********
+  // ******************************************
+  // play button (1. button top left)
+  pinMode(BTN_PLAY_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BTN_PLAY_PIN), pauseButtonPressed, FALLING);  
+  pinMode(BTN_PLAY_LED, OUTPUT);
+  digitalWrite(BTN_PLAY_LED, LOW);
 
-  // shift track button
-  pinMode(BUTTON_TRACK_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_TRACK_PIN), shiftTrackInterrupt, FALLING);  
-  pinMode(BUTTON_TRACK_LED, OUTPUT);
+  // select button (2. button top left)
+  pinMode(BTN_TRACK_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BTN_TRACK_PIN), selectInterrupt, FALLING);  
+  pinMode(BTN_TRACK_LED, OUTPUT);
 
-  // shift pattern button
-  //pinMode(BUTTON_PATTERN_PIN, OUTPUT); 
-  //digitalWrite(BUTTON_PATTERN_LED, LOW);
+  // option pattern button (3. button top left)
+  pinMode(BTN_PATTERN_PIN, OUTPUT); 
+  digitalWrite(BTN_PATTERN_LED, LOW);
 
   // internal teensy led
+  // not used atm
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);
 
-  /************  Reset PIN Setup  *************/
-  pinMode(RESET_PIN, INPUT);
+  // reset pins
+  pinMode(RST_PIN, INPUT);
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT);
   pinMode(ENC_PIN_A, INPUT);
   pinMode(ENC_PIN_B, INPUT); 
+
+
+  // ******************************************
+  // ************* DISPLAY SETUP **************
+  // ******************************************
+  pinMode(ST_SDCS, INPUT_PULLUP);  // don't touch the SD card
+  tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
+  tft.fillScreen(ST7735_BLACK);
+  tft.setRotation(1);
+
+  drawPlayerState();
+  drawTrackNum();
+  drawPatternNum();
+  drawTempo();
+  drawSequencerGrid(10);
+  drawActiveTrack();
+  drawActiveSteps();
 } 
 
 
@@ -127,15 +153,18 @@ void loop() {
   REPLACE MILLIS BY MICROS
 
   */
+
+  // time interval 
   if (millis() - tempoStamp >= tempoInMs)
   {
     tempoStamp = millis();
 
-    if (playerState == playing) 
+    if (playerState == PLAYER_PLAYING) 
     {
       // led sequence
       seqTrackToLED(actTrack);
-      seqLauflicht(actStep);
+      runLedEffect(actStep);
+      drawActiveSteps();
 
       // send midi notes to host
       sendMidiNotes();
@@ -152,105 +181,98 @@ void loop() {
 
   // MCP REGISTER A
   // step button as state machine [released, pressed, holding]
-  if (stepButtonStateA == pressed){
+  if (stepButtonStateA == BTN_CLICKED){
     int buttonId = identifyStepButton(1);
 
     // handle function logic
-    switch (shiftFunction)
+    switch (selectButtonState)
     {
-      case off:
-        // no shift function selected
+      case BTN_OFF:
+        // select button not pressed
         // default step sequencing
         updatePattern(buttonId);
+        drawActiveSteps();
         break;
-      case switchTrackActive:
+      case BTN_PRESSED:
         // change active track
         actTrack = buttonId;
-        shiftFunction = off;
-        digitalWrite(BUTTON_TRACK_LED, false);
-        break;
-      case switchPatternActive:
-        // change active pattern
-        // ...
-        break;    
+        selectButtonState = BTN_OFF;
+        digitalWrite(BTN_TRACK_LED, false);
+        drawSequencerGrid(0);
+        drawTrackNum();
+        drawActiveTrack();
+        break; 
       default:
         break;
     }
 
     // logic handled, set state to holding
     // wait for release button
-    stepButtonStateA = holding;
+    stepButtonStateA = BTN_PRESSED;
   }
 
-  if (stepButtonStateA == holding)
+  if (stepButtonStateA == BTN_PRESSED)
   {
-    // check if pin of mcp A is released
+    // check if pin of mcp A is actually released
     if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
     {
-      stepButtonStateA = released;
+      stepButtonStateA = BTN_OFF;
       mcpAStamp = millis();
     }
   }
 
   // MCP REGISTER B
   // step button as state machine [released, pressed, holding]
-  if (stepButtonStateB == pressed)
+  if (stepButtonStateB == BTN_CLICKED)
   {
     int buttonId = identifyStepButton(2);
 
     // handle function logic
-    switch (shiftFunction)
+    switch (selectButtonState)
     {
-      case off:
-        // no shift function selected
+      case BTN_OFF:
+        // select button not pressed
         // default step sequencing
         updatePattern(buttonId);
+        drawActiveSteps();
         break;
-      case switchTrackActive:
-        // change active track  
-        actTrack = buttonId;
-        shiftFunction = off;
-        digitalWrite(BUTTON_TRACK_LED, false);
-        break;
-      case switchPatternActive:
+      case BTN_PRESSED:
         // change active pattern  
         // ...
-        break;    
+        actPattern = buttonId - 8;
+        selectButtonState = BTN_OFF;
+        digitalWrite(BTN_TRACK_LED, false);
+        drawPatternNum();
+        break;  
       default:
         break;
     }
-
     // logic handled, set state to holding
     // wait for release button
-    stepButtonStateB = holding;
+    stepButtonStateB = BTN_PRESSED;
   }
 
-  if (stepButtonStateB == holding)
+  if (stepButtonStateB == BTN_PRESSED)
   {
-    // check if pin of mcp B is released
+    // check if pin of mcp B is actually released
     if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50)
     {
-      stepButtonStateB = released;
+      stepButtonStateB = BTN_OFF;
       mcpBStamp = millis();
     }
   }
 
-  if (shiftTrackState == pressed) 
+  if (selectButtonState == BTN_CLICKED) 
   {
-    shiftTrackState = holding;
+    selectButtonState = BTN_PRESSED;
   }
 }
 
 
 
 
-/*
-            TO DO: 
-  create note off logic
-  on next playback send note off
-  send old active notes off when 
-  stopping playback
-*/
+/// @brief in case there is a midi host like a daw
+/// available, send midi notes
 void sendMidiNotes(){
   for (int i=0; i < N_TRACKS; i++)
   {
@@ -272,24 +294,27 @@ void sendMidiNotes(){
   }
 }
 
-// Invertiert den aktuellen LED-Status, damit ein Lauflichteffekt entsteht
-void seqLauflicht (byte schrittNr){
-  if (pattern[actTrack][schrittNr] == 1)
+/// @brief invert the led of the active step
+/// to get a running light effect
+/// @param step active step of sequencer
+void runLedEffect (byte step){
+  if (pattern[actTrack][step] == 1)
   { 
-    writeLed(schrittNr,0);
+    writeLed(step,0);
   }
   else 
   {
-    writeLed(schrittNr,1);
+    writeLed(step,1);
   }
 }
 
-// Schaltet die LEDs der aktiven Spur so wie im SeqSpeicher an/aus
-void seqTrackToLED(byte trackNr) 
+/// @brief writes the led status of active track
+/// @param track active track of sequencer 
+void seqTrackToLED(byte track) 
 {
   for (int i=0; i<=15; i++) 
   {
-    writeLed(i,pattern[trackNr][i]);
+    writeLed(i,pattern[track][i]);
   }
 }
 
@@ -299,16 +324,19 @@ void pauseButtonPressed(){
 
   pauseStamp = millis();
 
-  if (playerState == stopped){
+  if (playerState == PLAYER_STOPPED){
     actStep = 0;
-    digitalWrite(BUTTON_PLAY_LED, false);
-    playerState = playing;
+    digitalWrite(BTN_PLAY_LED, false);
+    playerState = PLAYER_PLAYING;
     Serial.println("START");
+    drawPlayerState();
+
   } 
   else{
-    digitalWrite(BUTTON_PLAY_LED, true);
-    playerState = stopped;
+    digitalWrite(BTN_PLAY_LED, true);
+    playerState = PLAYER_STOPPED;
     Serial.println("STOP");
+    drawPlayerState();
   }
 }
 
@@ -319,30 +347,48 @@ void updateTempo(float bpm){
   tempoInMs = (1000.000/(bpm/60*noteLength));
 }
 
+// void encoderSwitch(){
+//   if (millis() - encButtonLastStamp > 300)
+//   {
+//     encButtonIsActive = !encButtonIsActive;
+//     digitalWrite(40, encButtonIsActive);
+//     encButtonLastStamp = millis();
+//   }
+// }
 
+// void doEncoderA()
+// {
+//   if ( rotating ) /*delay (1)*/;  // wait a little until the bouncing is done
+//   if( digitalRead(encoderPinA) != A_set ) 
+//   {  // debounce once more
+//     A_set = !A_set;
+//     // adjust counter + if A leads B
+//     if ( A_set && !B_set ) 
+//       encoderPos += 1;
+//     rotating = false;  // no more debouncing until loop() hits again
+//   }
+// }
 
-void encoderSwitch(){
-  if (millis() - encButtonLastStamp > 300)
-  {
-    encButtonIsActive = !encButtonIsActive;
-    digitalWrite(40, encButtonIsActive);
-    encButtonLastStamp = millis();
-  }
-}
-
+/// @brief interrupt when button of register A
+/// was pressed. sets a flag which can be
+/// analysed in main loop
 void mcpAButtonPressedInterrupt()
 {
-  if (millis() - mcpAStamp < 50 || stepButtonStateA != released ) return;
+  if (millis() - mcpAStamp < 50 || stepButtonStateA != BTN_OFF ) return;
   mcpAStamp = millis();
-  stepButtonStateA = pressed;
+  stepButtonStateA = BTN_CLICKED;
 }
 
+/// @brief interrupt when button of register B
+/// was pressed. sets a flag which can be
+/// analysed in main loop
 void mcpBButtonPressedInterrupt()
 {
-  if (millis() - mcpBStamp < 50 || stepButtonStateB != released ) return;
+  if (millis() - mcpBStamp < 50 || stepButtonStateB != BTN_OFF ) return;
   mcpBStamp = millis();
-  stepButtonStateB = pressed;
+  stepButtonStateB = BTN_CLICKED;
 }
+
 
 uint8_t mcpRead (byte mcpAdress, byte registerAdress){
   Wire.beginTransmission(mcpAdress);
@@ -389,8 +435,6 @@ int identifyStepButton(byte woGedrueckt)
   return -1;
 }
 
-
-
 // Schreibt Werte in den SeqSpeicher
 void updatePattern(int buttonId)
 {
@@ -433,23 +477,159 @@ void writeLed(uint8_t stepNummer, bool ledOn){
 }
 
 
-// Interrupt, welcher die aktuelle Spur ändert
-void shiftTrackInterrupt(){
-  if ((millis() - lastTimeTrack < 50) && shiftTrackState != released) return;
+// switch track on sequencer
+// press shift [control button 2] and step 1-8
+void selectInterrupt()
+{
+  if ((millis() - selectStamp < 50)) return;
 
-  shiftTrackState = pressed;
-
-  if (shiftFunction == off)
+  if (selectButtonState == BTN_OFF)
   {
-    digitalWrite(BUTTON_TRACK_LED, true);
-    shiftFunction = switchTrackActive;
+    selectButtonState = BTN_PRESSED;
+    digitalWrite(BTN_TRACK_LED, true);
   }
   else 
   {
-    digitalWrite(BUTTON_TRACK_LED, false);
-    shiftFunction = off;
+    selectButtonState = BTN_OFF;
+    digitalWrite(BTN_TRACK_LED, false);
   }
 
-  shiftFunction = switchTrackActive;
-  lastTimeTrack = millis();
+  selectStamp = millis();
+}
+
+void drawPlayerState() {
+  // tft.setCursor(3, 4);
+  tft.setTextSize(1);
+  // tft.setTextColor(ST7735_WHITE);
+  // tft.print(ST_STR_PLAYER);
+  tft.fillRect(0, 0, 40, 20, ST7735_BLUE);
+  tft.setTextColor(ST7735_BLACK);
+  tft.setTextWrap(true);
+  tft.setCursor(8, 8);
+
+  switch (playerState)
+  {
+    case PLAYER_PLAYING:
+      tft.print("PLAY");
+      break;
+    case PLAYER_STOPPED:
+      tft.print("STOP");
+      break; 
+    default:
+      break;
+    }
+}
+
+void drawTrackNum() {
+  char num[2];
+
+  itoa(actTrack, num, 10);
+  
+  // tft.setCursor(48, 12);
+  tft.setTextSize(1);
+  // tft.setTextColor(ST7735_BLACK);
+  // tft.print(ST_STR_TRACK);
+  tft.fillRect(40, 0, 40, 20, ST7735_RED);
+  tft.setTextColor(ST7735_BLACK);
+  tft.setTextWrap(true);
+  tft.setCursor(56, 8);
+  tft.print(num);
+}
+
+void drawPatternNum() {
+  char num[2];
+
+  itoa(actPattern, num, 10);
+  
+  // tft.setCursor(3, 44);
+  tft.setTextSize(1);
+  // tft.setTextColor(ST7735_WHITE);
+  // tft.print(ST_STR_PATTERN);
+  tft.fillRect(80, 0, 40, 20, ST7735_GREEN);
+  tft.setTextColor(ST7735_BLACK);
+  tft.setTextWrap(true);
+  tft.setCursor(96, 8);
+  tft.print(num);
+}
+
+void drawTempo() {
+  char num[4];
+
+  itoa(actBpm, num, 10);
+  
+  // tft.setCursor(3, 64);
+  tft.setTextSize(1);
+  // tft.setTextColor(ST7735_WHITE);
+  // tft.print(ST_STR_BPM);
+  tft.fillRect(120, 0, 40, 20, ST7735_ORANGE);
+  tft.setTextColor(ST7735_BLACK);
+  tft.setTextWrap(true);
+  tft.setCursor(130, 8);
+  tft.print(num);
+}
+
+void drawShiftFunction() {
+  tft.setCursor(0, 0);
+  tft.setTextSize(2);
+  tft.setTextColor(ST7735_WHITE);
+  tft.setTextWrap(true);
+}
+
+void drawSequencerGrid(int delayInMs = 0){
+  int x = 0;  
+  int y = 0;   
+
+  for (int i = 0; i < N_TRACKS; i++)
+  {
+    for (int j = 0; j < N_STEPS; j++)
+    {
+      tft.drawRect(x + ST_X0_OFFSET, y + ST_Y0_OFFSET, ST_STEP_WIDTH, ST_STEP_HEIGHT, ST7735_CYAN);
+      x = x + ST_STEP_WIDTH + ST_MARGIN_1PX;
+      delay(delayInMs);
+    }
+    x = 0;
+    y = y + ST_STEP_HEIGHT + ST_MARGIN_1PX;
+  }
+}
+
+void drawActiveTrack(){
+  int x = 0;  
+  int y = actTrack * (ST_STEP_HEIGHT + ST_MARGIN_1PX);  
+
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    tft.drawRect(x + ST_X0_OFFSET, y + ST_Y0_OFFSET, ST_STEP_WIDTH, ST_STEP_HEIGHT, ST7735_YELLOW);
+    x = x + ST_STEP_WIDTH + ST_MARGIN_1PX;
+  }
+  x = 0;
+  y = y + ST_STEP_HEIGHT + ST_MARGIN_1PX;
+}
+
+void drawActiveSteps(){
+  for (int i=0; i < N_TRACKS; i++)
+  {
+    for (int j = 0; j < N_STEPS; j++)
+    {
+      if (pattern[i][j] == true){
+        drawSequencerStep(i, j, true);
+      }
+      else{
+        drawSequencerStep(i, j, false);
+      }
+    }
+  }
+}
+
+void drawSequencerStep(int track, int step, bool fill){
+
+  int x = step * (ST_STEP_WIDTH + ST_MARGIN_1PX) + ST_MARGIN_1PX;
+  int y = track * (ST_STEP_HEIGHT + ST_MARGIN_1PX) + ST_MARGIN_1PX;
+
+  if (fill){
+    tft.fillRect(ST_X0_OFFSET + x, ST_Y0_OFFSET + y, ST_STEP_WIDTH - 2, ST_STEP_HEIGHT - 2, ST7735_RED);
+  }
+  else{
+  tft.fillRect(ST_X0_OFFSET + x, ST_Y0_OFFSET + y, ST_STEP_WIDTH - 2, ST_STEP_HEIGHT - 2, ST7735_BLACK);
+
+  }
 }
