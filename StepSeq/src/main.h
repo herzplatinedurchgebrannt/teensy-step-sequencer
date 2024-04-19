@@ -6,15 +6,15 @@
 // pin configuration
 const int ENC_PIN_A = 6;
 const int ENC_PIN_B = 7;
-const int MCP_PIN_INT_A = 29;    // before: 26
+const int MCP_PIN_INT_A = 29;       
 const int MCP_PIN_INT_B = 28;
 const int SSD_PIN_RESET = 13;
 const int BTN_PLAY_PIN = 2;
-const int BTN_PLAY_LED = 33;     // before: 38
-const int BTN_TRACK_PIN = 3;
-const int BTN_TRACK_LED = 34;    // before: 39
-const int BTN_PATTERN_PIN = 4;
-const int BTN_PATTERN_LED = 35;  // before: 40
+const int BTN_PLAY_LED = 33;  
+const int BTN_SELECT_PIN = 3;
+const int BTN_SELECT_LED = 34;  
+const int BTN_FUNCTION_PIN = 4;
+const int BTN_FUNCTION_LED = 35;  
 const int RST_PIN = 26;
 const int ST_SCLK = 13;  // SCLK can also use pin 14
 const int ST_MOSI = 11;  // MOSI can also use pin 7
@@ -40,45 +40,48 @@ const int ST_STEP_HEIGHT = 9;
 enum PlayerState { PLAYER_STOPPED, PLAYER_PLAYING };
 enum ButtonState { BTN_OFF, BTN_CLICKED, BTN_PRESSED, BTN_ON, BTN_RELEASED };
 
-void playback();
-void pauseButtonPressed();
-void updateTempo(float bpm);
 
-// MCP
-uint8_t mcpRead (uint8_t mcpAdress, uint8_t registerAdress);
-void mcpWrite (uint8_t mcpAdress, uint8_t registerAdress, uint8_t registerValues);
-// MENU
-void markMenu(int test);
-// SSD1306
-void draw(void);
-// Player
-void beatClock(uint8_t realtimeuint8_t);
-void sendMidiNotes(uint8_t spur, uint8_t schritt);
+void pauseButtonPressed();
+void updateTempo();
+
+
 // buttons
 void writeLed(uint8_t stepNummer, bool anOderAus);
 void mcpAButtonPressedInterrupt();
 void mcpBButtonPressedInterrupt();
-void getPressedButtonId(uint8_t woGedrueckt);
-void selectInterrupt();
+
+
+
 // leds
-void seqTrackToLED(uint8_t trackNr);
+
 void runLedEffect (byte schrittNr);
 
 // Pattern
-void updatePattern(int buttonId);
-void togglePlaybackState();
-void loadPreset (int whichPreset);
+void updatePatternStep(int buttonId);
+
+void writePreset (int patternNr);
+void loadPreset (int patternNr);
+
 // encoder
 void encoderSwitch();
 
-int getPressedButtonId(int identifier);
 
 
 int identifyStepButton(byte woGedrueckt);
-void seqNoteSchreiben(byte noteInBits, int mcpNummer);
 
+
+void seqTrackToLED(byte track);
+
+// midi 
 void sendMidiNotes();
 
+// interrupt events
+void selectButtonPressed();
+void functionButtonPressed();
+void encoderTurned();
+void encoderPressed();
+
+// display ST7735
 void drawPlayerState();
 void drawTempo();
 void drawTrackNum();

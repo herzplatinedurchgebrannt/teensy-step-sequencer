@@ -26,12 +26,13 @@ MCP23017& mcp = MCP23017::getInstance();
 ButtonState stepButtonStateA = BTN_OFF;
 ButtonState stepButtonStateB = BTN_OFF;
 ButtonState selectButtonState = BTN_OFF; 
-ButtonState optionButtonState = BTN_OFF;
+ButtonState functionButtonState = BTN_OFF;
 // timestamps for debouncing
 unsigned long mcpAStamp = 0;
 unsigned long mcpBStamp = 0;
 unsigned long pauseStamp = 0;
 unsigned long selectStamp = 0;
+unsigned long functionStamp = 0;
 
 // *** PLAYBACK LOGIC ***
 PlayerState playerState = PLAYER_PLAYING;
@@ -46,12 +47,16 @@ float tempoInMs = 250;  // time interval in ms
 unsigned long tempoStamp = 0;
 
 // *** ROTARY ENCODER ***
-int encValue = HIGH;
-int encValueOld = HIGH;
-int lastReportedPos = 1; 
-volatile bool encButtonIsActive = false;
-unsigned long encButtonLastStamp = 0;
-volatile int encoderPos = 0;  
+int encPinAState = HIGH;
+int encPinAStateOld = HIGH;
+
+volatile int encoderWert = 0;
+int encoderWertAlt = 0;
+volatile bool switchPressed = false;
+unsigned long lastTimeSwitchPressed = 0;
+
+volatile int encoderPos = 0;  // a counter for the dial
+int lastReportedPos = 1;   // change management
 
 // MENU
 DisplayMenu& menu = DisplayMenu::getInstance();
@@ -107,13 +112,14 @@ void setup() {
   digitalWrite(BTN_PLAY_LED, LOW);
 
   // select button (2. button top left)
-  pinMode(BTN_TRACK_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BTN_TRACK_PIN), selectInterrupt, FALLING);  
-  pinMode(BTN_TRACK_LED, OUTPUT);
+  pinMode(BTN_SELECT_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BTN_SELECT_PIN), selectButtonPressed, FALLING);  
+  pinMode(BTN_SELECT_LED, LOW);
 
-  // option pattern button (3. button top left)
-  pinMode(BTN_PATTERN_PIN, OUTPUT); 
-  digitalWrite(BTN_PATTERN_LED, LOW);
+  // function pattern button (3. button top left)
+  pinMode(BTN_FUNCTION_PIN, INPUT_PULLUP); 
+  attachInterrupt(digitalPinToInterrupt(BTN_FUNCTION_PIN), functionButtonPressed, FALLING);  
+  digitalWrite(BTN_FUNCTION_LED, LOW);
 
   // internal teensy led
   // not used atm
@@ -127,7 +133,11 @@ void setup() {
   pinMode(ENC_PIN_A, INPUT);
   pinMode(ENC_PIN_B, INPUT); 
 
+  // encoder
+  pinMode(ENC_PIN_A, INPUT); 
+  pinMode(ENC_PIN_B, INPUT); 
 
+ 
   // ******************************************
   // ************* DISPLAY SETUP **************
   // ******************************************
@@ -148,13 +158,9 @@ void setup() {
 
 void loop() {
 
-  /* TODO
-  
-  REPLACE MILLIS BY MICROS
-
-  */
-
-  // time interval 
+  // **************************************
+  //                PLAYBACK
+  // **************************************
   if (millis() - tempoStamp >= tempoInMs)
   {
     tempoStamp = millis();
@@ -179,7 +185,9 @@ void loop() {
   mcp.read(MCP23017::ADDRESS_1,MCP23017::INTCAPB);
   mcp.read(MCP23017::ADDRESS_2,MCP23017::INTCAPB);
 
-  // MCP REGISTER A
+  // **************************************
+  //            MCP REGISTER A
+  // **************************************
   // step button as state machine [released, pressed, holding]
   if (stepButtonStateA == BTN_CLICKED){
     int buttonId = identifyStepButton(1);
@@ -190,14 +198,14 @@ void loop() {
       case BTN_OFF:
         // select button not pressed
         // default step sequencing
-        updatePattern(buttonId);
+        updatePatternStep(buttonId);
         drawActiveSteps();
         break;
       case BTN_PRESSED:
         // change active track
         actTrack = buttonId;
         selectButtonState = BTN_OFF;
-        digitalWrite(BTN_TRACK_LED, false);
+        digitalWrite(BTN_SELECT_LED, false);
         drawSequencerGrid(0);
         drawTrackNum();
         drawActiveTrack();
@@ -221,11 +229,14 @@ void loop() {
     }
   }
 
-  // MCP REGISTER B
+  // **************************************
+  //            MCP REGISTER B
+  // **************************************
   // step button as state machine [released, pressed, holding]
   if (stepButtonStateB == BTN_CLICKED)
   {
     int buttonId = identifyStepButton(2);
+    int prevPattern = actPattern;
 
     // handle function logic
     switch (selectButtonState)
@@ -233,16 +244,22 @@ void loop() {
       case BTN_OFF:
         // select button not pressed
         // default step sequencing
-        updatePattern(buttonId);
+        updatePatternStep(buttonId);
         drawActiveSteps();
         break;
       case BTN_PRESSED:
         // change active pattern  
         // ...
+        
         actPattern = buttonId - 8;
         selectButtonState = BTN_OFF;
-        digitalWrite(BTN_TRACK_LED, false);
+        writePreset(prevPattern);
+        loadPreset(actPattern);
+        digitalWrite(BTN_SELECT_LED, false);
         drawPatternNum();
+        drawSequencerGrid(0);
+        drawTrackNum();
+        drawActiveTrack();
         break;  
       default:
         break;
@@ -262,14 +279,38 @@ void loop() {
     }
   }
 
+  // **************************************
+  //             SELECT BUTTON
+  // **************************************
   if (selectButtonState == BTN_CLICKED) 
   {
     selectButtonState = BTN_PRESSED;
   }
+
+  // **************************************
+  //            ROTARY ENCODER
+  // **************************************
+  encPinAState = digitalRead(ENC_PIN_A);
+
+  if ((encPinAState == LOW) && (encPinAStateOld == HIGH)) 
+  {
+    if (digitalRead(ENC_PIN_B) == HIGH) 
+    {
+      encoderPos++;
+      actBpm++;
+      updateTempo();
+    }
+    else 
+    {
+      actBpm--;
+      updateTempo();
+      encoderPos--;
+    }
+    Serial.println(actBpm);
+    drawTempo();
+  } 
+  encPinAStateOld = encPinAState;
 }
-
-
-
 
 /// @brief in case there is a midi host like a daw
 /// available, send midi notes
@@ -342,32 +383,20 @@ void pauseButtonPressed(){
 
 /// @brief update sequencer tempo
 /// @param bpm 
-void updateTempo(float bpm){
-  int noteLength = 4;
-  tempoInMs = (1000.000/(bpm/60*noteLength));
+void updateTempo(){
+  if (actBpm < 60){
+    actBpm = 60;
+  }
+  else if (actBpm > 220){
+    actBpm = 220;
+  }
+  else{
+    // go on
+  }
+
+  int noteLength = 2;
+  tempoInMs = (1000.000/(actBpm/60*noteLength));
 }
-
-// void encoderSwitch(){
-//   if (millis() - encButtonLastStamp > 300)
-//   {
-//     encButtonIsActive = !encButtonIsActive;
-//     digitalWrite(40, encButtonIsActive);
-//     encButtonLastStamp = millis();
-//   }
-// }
-
-// void doEncoderA()
-// {
-//   if ( rotating ) /*delay (1)*/;  // wait a little until the bouncing is done
-//   if( digitalRead(encoderPinA) != A_set ) 
-//   {  // debounce once more
-//     A_set = !A_set;
-//     // adjust counter + if A leads B
-//     if ( A_set && !B_set ) 
-//       encoderPos += 1;
-//     rotating = false;  // no more debouncing until loop() hits again
-//   }
-// }
 
 /// @brief interrupt when button of register A
 /// was pressed. sets a flag which can be
@@ -388,7 +417,6 @@ void mcpBButtonPressedInterrupt()
   mcpBStamp = millis();
   stepButtonStateB = BTN_CLICKED;
 }
-
 
 uint8_t mcpRead (byte mcpAdress, byte registerAdress){
   Wire.beginTransmission(mcpAdress);
@@ -435,8 +463,7 @@ int identifyStepButton(byte woGedrueckt)
   return -1;
 }
 
-// Schreibt Werte in den SeqSpeicher
-void updatePattern(int buttonId)
+void updatePatternStep(int buttonId)
 {
   if (pattern[actTrack][buttonId] == 1) 
   { 
@@ -476,32 +503,53 @@ void writeLed(uint8_t stepNummer, bool ledOn){
   mcp.write(address, MCP23017::GPIOA, status);
 }
 
-
-// switch track on sequencer
-// press shift [control button 2] and step 1-8
-void selectInterrupt()
+void selectButtonPressed()
 {
   if ((millis() - selectStamp < 50)) return;
 
   if (selectButtonState == BTN_OFF)
   {
     selectButtonState = BTN_PRESSED;
-    digitalWrite(BTN_TRACK_LED, true);
+    digitalWrite(BTN_SELECT_LED, true);
   }
   else 
   {
     selectButtonState = BTN_OFF;
-    digitalWrite(BTN_TRACK_LED, false);
+    digitalWrite(BTN_SELECT_LED, false);
   }
 
   selectStamp = millis();
 }
 
+void functionButtonPressed()
+{
+  if ((millis() - functionStamp < 50)) return;
+
+  if (functionButtonState == BTN_OFF)
+  {
+    functionButtonState = BTN_PRESSED;
+    digitalWrite(BTN_FUNCTION_LED, true);
+  }
+  else 
+  {
+    functionButtonState = BTN_OFF;
+    digitalWrite(BTN_FUNCTION_LED, false);
+  }
+
+  functionStamp = millis();
+}
+
+void encoderTurned(){
+
+}
+
+void encoderPressed(){
+
+
+}
+
 void drawPlayerState() {
-  // tft.setCursor(3, 4);
   tft.setTextSize(1);
-  // tft.setTextColor(ST7735_WHITE);
-  // tft.print(ST_STR_PLAYER);
   tft.fillRect(0, 0, 40, 20, ST7735_BLUE);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
@@ -525,10 +573,7 @@ void drawTrackNum() {
 
   itoa(actTrack, num, 10);
   
-  // tft.setCursor(48, 12);
   tft.setTextSize(1);
-  // tft.setTextColor(ST7735_BLACK);
-  // tft.print(ST_STR_TRACK);
   tft.fillRect(40, 0, 40, 20, ST7735_RED);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
@@ -541,10 +586,7 @@ void drawPatternNum() {
 
   itoa(actPattern, num, 10);
   
-  // tft.setCursor(3, 44);
   tft.setTextSize(1);
-  // tft.setTextColor(ST7735_WHITE);
-  // tft.print(ST_STR_PATTERN);
   tft.fillRect(80, 0, 40, 20, ST7735_GREEN);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
@@ -557,10 +599,7 @@ void drawTempo() {
 
   itoa(actBpm, num, 10);
   
-  // tft.setCursor(3, 64);
   tft.setTextSize(1);
-  // tft.setTextColor(ST7735_WHITE);
-  // tft.print(ST_STR_BPM);
   tft.fillRect(120, 0, 40, 20, ST7735_ORANGE);
   tft.setTextColor(ST7735_BLACK);
   tft.setTextWrap(true);
@@ -632,4 +671,135 @@ void drawSequencerStep(int track, int step, bool fill){
   tft.fillRect(ST_X0_OFFSET + x, ST_Y0_OFFSET + y, ST_STEP_WIDTH - 2, ST_STEP_HEIGHT - 2, ST7735_BLACK);
 
   }
+}
+
+
+void writePreset (int patternNr){
+  switch (patternNr)
+    {
+    case 0:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern0[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    case 1:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern1[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    case 2:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern2[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    case 3:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern3[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    case 4:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern4[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    case 5:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern5[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    case 6:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern6[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    case 7:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern7[i][j] = pattern[i][j];
+        }   
+      }
+      break;
+    default:
+      break;
+    }
+}
+
+void loadPreset (int patternNr){
+  switch (patternNr)
+    {
+    case 0:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern0[i][j];
+        }   
+      }
+      break;
+    case 1:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern1[i][j];
+        }   
+      }
+      break;
+    case 2:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern2[i][j];
+        }   
+      }
+      break;
+    case 3:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern3[i][j];
+        }   
+      }
+      break;
+    case 4:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern4[i][j];
+        }   
+      }
+      break;
+    case 5:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern5[i][j];
+        }   
+      }
+      break;
+    case 6:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern6[i][j];
+        }   
+      }
+      break;
+    case 7:
+      for (int i=0; i<8; i++){
+        for (int j=0; j<16; j++){
+          pattern[i][j] = pattern7[i][j];
+        }   
+      }
+      break;
+    default:
+      break;
+    }
+
+    actPattern = patternNr;
 }
