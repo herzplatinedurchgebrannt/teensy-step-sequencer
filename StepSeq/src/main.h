@@ -81,6 +81,10 @@ void functionButtonPressed();
 void encoderTurned();
 void encoderPressed();
 
+// additional functions
+void clearActivePattern();
+void eigthsOnActiveTrack();
+
 // display ST7735
 void drawPlayerState();
 void drawTempo();

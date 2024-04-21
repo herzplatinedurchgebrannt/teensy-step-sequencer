@@ -23,8 +23,8 @@ Adafruit_ST7735 tft = Adafruit_ST7735(ST_CS, ST_DC, ST_RST);
 // shift registers
 MCP23017& mcp = MCP23017::getInstance();
 // button states
-ButtonState stepButtonStateA = BTN_OFF;
-ButtonState stepButtonStateB = BTN_OFF;
+ButtonState mcp1ButtonState = BTN_OFF;
+ButtonState mcp2ButtonState = BTN_OFF;
 ButtonState selectButtonState = BTN_OFF; 
 ButtonState functionButtonState = BTN_OFF;
 // timestamps for debouncing
@@ -189,42 +189,64 @@ void loop() {
   //            MCP REGISTER A
   // **************************************
   // step button as state machine [released, pressed, holding]
-  if (stepButtonStateA == BTN_CLICKED){
+  if (mcp1ButtonState == BTN_CLICKED){
     int buttonId = identifyStepButton(1);
 
-    // handle function logic
-    switch (selectButtonState)
-    {
-      case BTN_OFF:
-        // select button not pressed
-        // default step sequencing
+    // if select AND function buttons are not pressed
+    // behave as default step sequencer
+    if (selectButtonState == BTN_OFF && functionButtonState == BTN_OFF){
+
         updatePatternStep(buttonId);
         drawActiveSteps();
-        break;
-      case BTN_PRESSED:
-        // change active track
+    }
+  // if select button is pressed change track or pattern
+    else if (selectButtonState == BTN_PRESSED && functionButtonState == BTN_OFF){
+        
         actTrack = buttonId;
         selectButtonState = BTN_OFF;
         digitalWrite(BTN_SELECT_LED, false);
         drawSequencerGrid(0);
         drawTrackNum();
         drawActiveTrack();
-        break; 
-      default:
-        break;
+    }
+    // if function button is pressed, additional functions are available
+    else if (selectButtonState == BTN_OFF && functionButtonState == BTN_PRESSED){
+        
+        switch (buttonId)
+        {
+        case 0:
+          clearActivePattern();
+          break;
+        case 1:
+          eigthsOnActiveTrack();
+          break;
+        default:
+          break;
+        }
+        functionButtonState = BTN_OFF;
+        digitalWrite(BTN_FUNCTION_LED, false);
+
+    }
+    // if both buttons are pressed
+    else{
+      // hmmmm no idea for now ?!
+      // set back to default states
+      selectButtonState = BTN_OFF;
+      functionButtonState = BTN_OFF;
+
     }
 
     // logic handled, set state to holding
     // wait for release button
-    stepButtonStateA = BTN_PRESSED;
+    mcp1ButtonState = BTN_PRESSED;
   }
 
-  if (stepButtonStateA == BTN_PRESSED)
+  if (mcp1ButtonState == BTN_PRESSED)
   {
     // check if pin of mcp A is actually released
     if (digitalRead(MCP_PIN_INT_A) == 1 && millis() - mcpAStamp > 50) 
     {
-      stepButtonStateA = BTN_OFF;
+      mcp1ButtonState = BTN_OFF;
       mcpAStamp = millis();
     }
   }
@@ -233,7 +255,7 @@ void loop() {
   //            MCP REGISTER B
   // **************************************
   // step button as state machine [released, pressed, holding]
-  if (stepButtonStateB == BTN_CLICKED)
+  if (mcp2ButtonState == BTN_CLICKED)
   {
     int buttonId = identifyStepButton(2);
     int prevPattern = actPattern;
@@ -266,15 +288,15 @@ void loop() {
     }
     // logic handled, set state to holding
     // wait for release button
-    stepButtonStateB = BTN_PRESSED;
+    mcp2ButtonState = BTN_PRESSED;
   }
 
-  if (stepButtonStateB == BTN_PRESSED)
+  if (mcp2ButtonState == BTN_PRESSED)
   {
     // check if pin of mcp B is actually released
     if (digitalRead(MCP_PIN_INT_B) == 1 && millis() - mcpBStamp > 50)
     {
-      stepButtonStateB = BTN_OFF;
+      mcp2ButtonState = BTN_OFF;
       mcpBStamp = millis();
     }
   }
@@ -403,9 +425,9 @@ void updateTempo(){
 /// analysed in main loop
 void mcpAButtonPressedInterrupt()
 {
-  if (millis() - mcpAStamp < 50 || stepButtonStateA != BTN_OFF ) return;
+  if (millis() - mcpAStamp < 50 || mcp1ButtonState != BTN_OFF ) return;
   mcpAStamp = millis();
-  stepButtonStateA = BTN_CLICKED;
+  mcp1ButtonState = BTN_CLICKED;
 }
 
 /// @brief interrupt when button of register B
@@ -413,9 +435,9 @@ void mcpAButtonPressedInterrupt()
 /// analysed in main loop
 void mcpBButtonPressedInterrupt()
 {
-  if (millis() - mcpBStamp < 50 || stepButtonStateB != BTN_OFF ) return;
+  if (millis() - mcpBStamp < 50 || mcp2ButtonState != BTN_OFF ) return;
   mcpBStamp = millis();
-  stepButtonStateB = BTN_CLICKED;
+  mcp2ButtonState = BTN_CLICKED;
 }
 
 uint8_t mcpRead (byte mcpAdress, byte registerAdress){
@@ -803,3 +825,10 @@ void loadPreset (int patternNr){
 
     actPattern = patternNr;
 }
+
+void clearActivePattern(){
+  Serial.println("CLEAR ACTIVE PATTERN");
+};
+void eigthsOnActiveTrack(){
+  Serial.println("EIGHTHS");
+};
