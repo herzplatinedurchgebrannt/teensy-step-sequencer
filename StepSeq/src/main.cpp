@@ -189,18 +189,21 @@ void loop() {
   //            MCP REGISTER A
   // **************************************
   // step button as state machine [released, pressed, holding]
-  if (mcp1ButtonState == BTN_CLICKED){
+  if (mcp1ButtonState == BTN_CLICKED)
+  {
     int buttonId = identifyStepButton(1);
 
     // if select AND function buttons are not pressed
     // behave as default step sequencer
-    if (selectButtonState == BTN_OFF && functionButtonState == BTN_OFF){
+    if (selectButtonState == BTN_OFF && functionButtonState == BTN_OFF)
+    {
 
         updatePatternStep(buttonId);
         drawActiveSteps();
     }
-  // if select button is pressed change track or pattern
-    else if (selectButtonState == BTN_PRESSED && functionButtonState == BTN_OFF){
+    // if select button is pressed change track or pattern
+    else if (selectButtonState == BTN_PRESSED && functionButtonState == BTN_OFF)
+    {
         
         actTrack = buttonId;
         selectButtonState = BTN_OFF;
@@ -210,30 +213,47 @@ void loop() {
         drawActiveTrack();
     }
     // if function button is pressed, additional functions are available
-    else if (selectButtonState == BTN_OFF && functionButtonState == BTN_PRESSED){
-        
-        switch (buttonId)
-        {
+    else if (selectButtonState == BTN_OFF && functionButtonState == BTN_PRESSED)
+    {
+      switch (buttonId)
+      {
         case 0:
-          clearActivePattern();
+          clearActiveTrack();
           break;
         case 1:
+          halfsVar1ActTrack();
+          break;
+        case 2:
+          halfsVar2ActTrack();  
+          break;
+        case 3: 
+          quarterVar1ActTrack();
+          break;
+        case 4:
+          quarterVar2ActTrack();
+          break;
+        case 5:
           eigthsOnActiveTrack();
+          break;
+        case 6:
+
+          break;
+        case 7:
+
           break;
         default:
           break;
-        }
-        functionButtonState = BTN_OFF;
-        digitalWrite(BTN_FUNCTION_LED, false);
-
+      }
+      functionButtonState = BTN_OFF;
+      digitalWrite(BTN_FUNCTION_LED, false);
     }
     // if both buttons are pressed
-    else{
+    else
+    {
       // hmmmm no idea for now ?!
       // set back to default states
       selectButtonState = BTN_OFF;
       functionButtonState = BTN_OFF;
-
     }
 
     // logic handled, set state to holding
@@ -241,6 +261,8 @@ void loop() {
     mcp1ButtonState = BTN_PRESSED;
   }
 
+  // release mcp1 step button
+  // make it accessible again
   if (mcp1ButtonState == BTN_PRESSED)
   {
     // check if pin of mcp A is actually released
@@ -255,42 +277,86 @@ void loop() {
   //            MCP REGISTER B
   // **************************************
   // step button as state machine [released, pressed, holding]
+
   if (mcp2ButtonState == BTN_CLICKED)
   {
     int buttonId = identifyStepButton(2);
     int prevPattern = actPattern;
 
-    // handle function logic
-    switch (selectButtonState)
+    // if select AND function buttons are not pressed
+    // behave as default step sequencer
+    if (selectButtonState == BTN_OFF && functionButtonState == BTN_OFF)
     {
-      case BTN_OFF:
-        // select button not pressed
-        // default step sequencing
         updatePatternStep(buttonId);
         drawActiveSteps();
-        break;
-      case BTN_PRESSED:
-        // change active pattern  
-        // ...
-        
-        actPattern = buttonId - 8;
-        selectButtonState = BTN_OFF;
-        writePreset(prevPattern);
-        loadPreset(actPattern);
-        digitalWrite(BTN_SELECT_LED, false);
-        drawPatternNum();
-        drawSequencerGrid(0);
-        drawTrackNum();
-        drawActiveTrack();
-        break;  
-      default:
-        break;
     }
+    // if select button is pressed change track or pattern
+    else if (selectButtonState == BTN_PRESSED && functionButtonState == BTN_OFF)
+    {
+      // change active pattern  
+      // ...
+      actPattern = buttonId - 8;
+      selectButtonState = BTN_OFF;
+      writePreset(prevPattern);
+      loadPreset(actPattern);
+      digitalWrite(BTN_SELECT_LED, false);
+      drawPatternNum();
+      drawSequencerGrid(0);
+      drawTrackNum();
+      drawActiveTrack();
+    }
+    // if function button is pressed, additional functions are available
+    else if (selectButtonState == BTN_OFF && functionButtonState == BTN_PRESSED)
+    {
+      switch (buttonId - 8)
+      {
+        case 0:
+          clearActivePattern();
+          drawNoSteps();
+          break;
+        case 1:
+          changeMidiOutActTrack();
+          break;
+        case 2:
+          savePatternToSdCard();
+          break;
+        case 3: 
+          getTimingByMidiHost();
+          break;
+        case 4:
+          
+          break;
+        case 5:
+          
+          break;
+        case 6:
+
+          break;
+        case 7:
+
+          break;
+        default:
+          break;
+      }
+      functionButtonState = BTN_OFF;
+      digitalWrite(BTN_FUNCTION_LED, false);
+    }
+    // if both buttons are pressed
+    else
+    {
+      // hmmmm no idea for now ?!
+      // set back to default states
+      selectButtonState = BTN_OFF;
+      functionButtonState = BTN_OFF;
+    }
+
     // logic handled, set state to holding
     // wait for release button
     mcp2ButtonState = BTN_PRESSED;
   }
 
+  // release mcp 2 step button
+  // make it accessible again
   if (mcp2ButtonState == BTN_PRESSED)
   {
     // check if pin of mcp B is actually released
@@ -333,6 +399,12 @@ void loop() {
   } 
   encPinAStateOld = encPinAState;
 }
+
+
+
+
+
+
 
 /// @brief in case there is a midi host like a daw
 /// available, send midi notes
@@ -387,7 +459,8 @@ void pauseButtonPressed(){
 
   pauseStamp = millis();
 
-  if (playerState == PLAYER_STOPPED){
+  if (playerState == PLAYER_STOPPED)
+  {
     actStep = 0;
     digitalWrite(BTN_PLAY_LED, false);
     playerState = PLAYER_PLAYING;
@@ -395,7 +468,8 @@ void pauseButtonPressed(){
     drawPlayerState();
 
   } 
-  else{
+  else
+  {
     digitalWrite(BTN_PLAY_LED, true);
     playerState = PLAYER_STOPPED;
     Serial.println("STOP");
@@ -406,13 +480,16 @@ void pauseButtonPressed(){
 /// @brief update sequencer tempo
 /// @param bpm 
 void updateTempo(){
-  if (actBpm < 60){
+  if (actBpm < 60)
+  {
     actBpm = 60;
   }
-  else if (actBpm > 220){
+  else if (actBpm > 220)
+  {
     actBpm = 220;
   }
-  else{
+  else
+  {
     // go on
   }
 
@@ -681,6 +758,16 @@ void drawActiveSteps(){
   }
 }
 
+void drawNoSteps(){
+  for (int i=0; i < N_TRACKS; i++)
+  {
+    for (int j = 0; j < N_STEPS; j++)
+    {
+      drawSequencerStep(i, j, false);
+    }
+  }
+}
+
 void drawSequencerStep(int track, int step, bool fill){
 
   int x = step * (ST_STEP_WIDTH + ST_MARGIN_1PX) + ST_MARGIN_1PX;
@@ -826,9 +913,86 @@ void loadPreset (int patternNr){
     actPattern = patternNr;
 }
 
-void clearActivePattern(){
+
+
+// additional functions by function button
+void clearActivePattern()
+{
+  for (int i=0; i < N_TRACKS; i++)
+  {
+    for (int j = 0; j < N_STEPS; j++)
+    {
+      pattern[i][j] = 0;
+    }
+  }
   Serial.println("CLEAR ACTIVE PATTERN");
 };
-void eigthsOnActiveTrack(){
+void changeMidiOutActTrack()
+{
+  Serial.println("CHANGE MIDI OUT ACT TRACK");
+}
+void savePatternToSdCard()
+{
+  Serial.println("SAVE PATTERN TO SD CARD");
+}
+void getTimingByMidiHost()
+{
+  Serial.println("GET TIMING MIDI HOST");
+}
+void clearActiveTrack()
+{
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    pattern[actTrack][j] = 0;
+  }
+  Serial.println("CLEAR ACTIVE TRACK");
+}
+void halfsVar1ActTrack()
+{
+  bool notes[16] = {1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0};
+
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    pattern[actTrack][j] = notes[j];
+  }
+  Serial.println("HALFS VAR 2");
+}
+void halfsVar2ActTrack()
+{
+  bool notes[16] = {0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0};
+
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    pattern[actTrack][j] = notes[j];
+  }
+  Serial.println("HALFS VAR 1");
+}
+void quarterVar1ActTrack()
+{
+  bool notes[16] = {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0};
+
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    pattern[actTrack][j] = notes[j];
+  }
+  Serial.println("QUARTER VAR 1");
+};
+void quarterVar2ActTrack()
+{
+  bool notes[16] = {0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1};
+
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    pattern[actTrack][j] = notes[j];
+  }
+  Serial.println("QUARTER VAR 2");
+}
+void eigthsOnActiveTrack()
+{
+  for (int j = 0; j < N_STEPS; j++)
+  {
+    pattern[actTrack][j] = 1;
+  }
   Serial.println("EIGHTHS");
 };
+

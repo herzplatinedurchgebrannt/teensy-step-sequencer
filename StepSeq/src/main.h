@@ -83,7 +83,17 @@ void encoderPressed();
 
 // additional functions
 void clearActivePattern();
+void changeMidiOutActTrack();
+void savePatternToSdCard();
+void getTimingByMidiHost();
+
+void clearActiveTrack();
+void halfsVar1ActTrack();
+void halfsVar2ActTrack();
+void quarterVar1ActTrack();
+void quarterVar2ActTrack();
 void eigthsOnActiveTrack();
+
 
 // display ST7735
 void drawPlayerState();
@@ -94,5 +104,6 @@ void drawShiftFunction();
 void drawSequencerGrid(int delayInMs);
 void drawActiveTrack();
 void drawActiveSteps();
+void drawNoSteps();
 void drawSequencerStep(int track, int step, bool fill);
 #endif
